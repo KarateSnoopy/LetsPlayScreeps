@@ -5,6 +5,7 @@
   "rules": {
     "forin": false,
     "one-line": false,
+    "ordered-imports": false,
     "interface-name": [false],
     "no-console": [false],
     "trailing-comma": [

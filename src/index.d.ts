@@ -5,9 +5,6 @@ interface Memory
     Profiler: Profiler;
 }
 
-// add objects to `global` here
-// NodeJS already declares global, so we need to extend it here:
-// tslint:disable-next-line
 declare namespace NodeJS
 {
     interface Global
