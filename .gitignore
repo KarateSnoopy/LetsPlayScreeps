@@ -1,32 +1,86 @@
-# Prerequisites
-*.d
+# yarn lock file
+/yarn.lock
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# npm lock file (v5.0.0+)
+/package-lock.json
 
-# Precompiled Headers
-*.gch
-*.pch
+# Ignore basic folders
+/dist
+/node_modules
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+# Screeps config file
+/config.json
 
-# Fortran module files
-*.mod
-*.smod
+# code coverage directory
+/coverage
+.nyc_output/
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+# Numerous always-ignore extensions
+*.diff
+*.err
+*.orig
+*.log
+*.rej
+*.swo
+*.swp
+*.zip
+*.vi
+*~
 
-# Executables
-*.exe
-*.out
-*.app
+# Editor folders
+.cache
+.project
+.settings
+.tmproj
+*.esproj
+nbproject
+*.sublime-project
+*.sublime-workspace
+.idea
+
+# =========================
+# Operating System Files
+# =========================
+
+# OSX
+# =========================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear on external disk
+.Spotlight-V100
+.Trashes
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+# =========================
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk
