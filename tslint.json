@@ -6,6 +6,8 @@
     "forin": false,
     "one-line": false,
     "ordered-imports": false,
+    "comment-format": false,
+    "no-consecutive-blank-lines": false,
     "interface-name": [false],
     "no-console": [false],
     "trailing-comma": [

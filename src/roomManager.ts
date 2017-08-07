@@ -8,8 +8,10 @@ export let creeps: Creep[];
 export let creepCount: number = 0;
 export let miners: Creep[] = [];
 
-export function run(room: Room): void
+export function run(room: Room, rm: M.RoomMemory): void
 {
+    rm.roomName = "3";
+
     profileRecord("_loadCreeps", true);
     _loadCreeps(room);
     profileRecord("_loadCreeps", false);
