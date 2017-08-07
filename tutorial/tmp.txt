@@ -1,0 +1,40 @@
+ Game.spawns['Spawn1'].createCreep( [WORK, CARRY, MOVE], undefined, { role: 'harvester' } );
+ Game.spawns['Spawn1'].createCreep( [WORK, CARRY, MOVE], 'Builder1', { role: 'builder' } );
+ Game.spawns['Spawn1'].room.controller.activateSafeMode();
+ Game.spawns['Spawn1'].room.createConstructionSite( 23, 22, STRUCTURE_TOWER );
+ setTickRate(50)
+
+var roleHarvester = require('role.harvester');
+var roleUpgrader = require('role.upgrader');
+var roleBuilder = require('role.builder');
+
+module.exports.loop = function () {
+
+    var tower = Game.getObjectById('bc1bffd7ee61bdc4441de392');
+    if(tower) {
+        var closestDamagedStructure = tower.pos.findClosestByRange(FIND_STRUCTURES, {
+            filter: (structure) => structure.hits < structure.hitsMax
+        });
+        if(closestDamagedStructure) {
+            tower.repair(closestDamagedStructure);
+        }
+
+        var closestHostile = tower.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
+        if(closestHostile) {
+            tower.attack(closestHostile);
+        }
+    }
+
+    for(var name in Game.creeps) {
+        var creep = Game.creeps[name];
+        if(creep.memory.role == 'harvester') {
+            roleHarvester.run(creep);
+        }
+        if(creep.memory.role == 'upgrader') {
+            roleUpgrader.run(creep);
+        }
+        if(creep.memory.role == 'builder') {
+            roleBuilder.run(creep);
+        }
+    }
+}
