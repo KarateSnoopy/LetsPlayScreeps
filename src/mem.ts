@@ -111,8 +111,6 @@ export class RoomMemory
 
 export interface GameMemory
 {
-    //[name: string]: any;
-
     memVersion: number | undefined;
     uuid: number;
     log: any;
@@ -145,12 +143,13 @@ export interface CreepMemory
     roleString: string;
     log: boolean;
     gathering: boolean;
-    // name: string;
+    assignedMineTaskId?: number;
+    assignedContainerId?: string;
+
     // roomName ?: string;
     // path ?: CreepPath;
     // assignedCreepTaskId ?: number;
     // assignedEnergyTaskId ?: number;
-    assignedMineTaskId?: number;
     // assignedPullEnergyFromStorage : boolean;
     // attackWave ?: CreepAttackWaveMemory;
     // claimerRoomTarget ?: string;

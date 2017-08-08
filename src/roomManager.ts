@@ -51,9 +51,9 @@ function loadCreeps(room: Room, rm: M.RoomMemory)
     miners = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_MINER);
     builders = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_BUILDER);
     structures = room.find<StructureContainer>(FIND_STRUCTURES);
-    containers = _.filter(structures, (structure) => structure.structureType == STRUCTURE_CONTAINER) as StructureContainer[]; //  tslint:disable-line
+    containers = _.filter(structures, (structure) => structure.structureType === STRUCTURE_CONTAINER) as StructureContainer[];
 
-    log.info(`Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length}`); //  tslint:disable-line
+    log.info(`Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length}`);
 }
 
 function buildMissingCreeps(room: Room, rm: M.RoomMemory)
@@ -337,3 +337,41 @@ export function cleanupAssignMiners(rm: M.RoomMemory)
     }
 }
 
+interface NodeContainerIdChoice
+{
+    id: string;
+    count: number;
+}
+
+export function getContainerIdWithLeastBuildersAssigned(room: Room, rm: M.RoomMemory): string | undefined
+{
+    const choices: NodeContainerIdChoice[] = [];
+
+    _.each(containers, (container: StructureContainer) =>
+    {
+        let count = 0;
+        _.each(builders, (tmpBuilder: Creep) =>
+        {
+            if (M.cm(tmpBuilder).assignedContainerId === container.id)
+            {
+                count++;
+            }
+        });
+
+        const choice: NodeContainerIdChoice =
+            {
+                id: container.id, count
+            };
+        log.info(`Container ${container.id} = ${count}`);
+        choices.push(choice);
+    });
+
+    const sortedChoices = _.sortBy(choices, (choice: NodeContainerIdChoice) => choice.count);
+    if (sortedChoices.length > 0)
+    {
+        log.info(`Best container ${sortedChoices[0].id} = ${sortedChoices[0].count}`);
+        return sortedChoices[0].id;
+    }
+
+    return undefined;
+}
