@@ -1,7 +1,8 @@
 import * as M from "./mem";
 import { log } from "./lib/logger/log";
+import * as builder from "./builder";
 
-export function run(creep: Creep, rm: M.RoomMemory): void
+export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
 {
     const cm = M.cm(creep);
     if (cm.assignedMineTaskId === undefined)
@@ -22,20 +23,29 @@ export function run(creep: Creep, rm: M.RoomMemory): void
     }
     else
     {
-        if (_.sum(creep.carry) === creep.carryCapacity)
+        if (cm.gathering && creep.carry.energy === creep.carryCapacity)
+        {
+            cm.gathering = false;
+        }
+        if (!cm.gathering && creep.carry.energy === 0)
+        {
+            cm.gathering = true;
+        }
+
+        if (!cm.gathering)
         {
             //log.info(`${creep.name} miner is working on dropping off`);
-            dropOffEnergy(creep);
+            dropOffEnergy(room, creep);
         }
         else
         {
             //log.info(`${creep.name} miner is moving to mine`);
-            moveToMine(creep, cm, rm);
+            harvestEnergy(creep, cm, rm);
         }
     }
 }
 
-function moveToMine(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
+function harvestEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
 {
     //log.info(`${creep.name} miner is moving to mine`);
     const minerTask = rm.minerTasks.find((t: M.MinerTask) => t.taskId === cm.assignedMineTaskId);
@@ -71,7 +81,7 @@ function moveToMine(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
     }
 }
 
-function dropOffEnergy(creep: Creep): void
+function dropOffEnergy(room: Room, creep: Creep): void
 {
     const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
         {
@@ -102,6 +112,31 @@ function dropOffEnergy(creep: Creep): void
         if (creep.transfer(targets[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         {
             creep.moveTo(targets[0], { visualizePathStyle: { stroke: "#ffffff" } });
+        }
+    }
+    else
+    {
+        if (room.controller !== undefined)
+        {
+            let isBuilding = false;
+            if (room.controller.ticksToDowngrade > 1000)
+            {
+                isBuilding = builder.buildIfCan(room, creep);
+            }
+
+            if (!isBuilding)
+            {
+                const status = creep.upgradeController(room.controller);
+                if (status === ERR_NOT_IN_RANGE)
+                {
+                    const moveCode = creep.moveTo(room.controller, { visualizePathStyle: { stroke: "#ffffff" } });
+                    if (moveCode !== OK && moveCode !== ERR_TIRED)
+                    {
+                        log.error(`move and got ${moveCode}`);
+                    }
+                }
+            }
+
         }
     }
 }

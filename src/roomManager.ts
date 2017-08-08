@@ -1,5 +1,6 @@
 import * as Config from "config";
 import * as miner from "./miner";
+import * as builder from "./builder";
 import { log } from "./lib/logger/log";
 import { profileRecord } from "./lib/Profiler";
 import * as M from "./mem";
@@ -7,16 +8,17 @@ import * as M from "./mem";
 export let creeps: Creep[];
 export let creepCount: number = 0;
 export let miners: Creep[] = [];
+export let builders: Creep[] = [];
 
 export function run(room: Room, rm: M.RoomMemory): void
 {
-    profileRecord("_loadCreeps", true);
-    _loadCreeps(room);
-    profileRecord("_loadCreeps", false);
+    profileRecord("loadCreeps", true);
+    loadCreeps(room, rm);
+    profileRecord("loadCreeps", false);
 
-    profileRecord("_buildMissingCreeps", true);
-    _buildMissingCreeps(room, rm);
-    profileRecord("_buildMissingCreeps", false);
+    profileRecord("buildMissingCreeps", true);
+    buildMissingCreeps(room, rm);
+    profileRecord("buildMissingCreeps", false);
 
     _.each(creeps, (creep: Creep) =>
     {
@@ -24,8 +26,14 @@ export function run(room: Room, rm: M.RoomMemory): void
         if (creepMem.role === M.CreepRoles.ROLE_MINER)
         {
             profileRecord("miner.run", true);
-            miner.run(creep, rm);
+            miner.run(room, creep, rm);
             profileRecord("miner.run", false);
+        }
+        else if (creepMem.role === M.CreepRoles.ROLE_BUILDER)
+        {
+            profileRecord("builder.run", true);
+            builder.run(room, creep, rm);
+            profileRecord("builder.run", false);
         }
         else
         {
@@ -34,14 +42,17 @@ export function run(room: Room, rm: M.RoomMemory): void
     });
 }
 
-function _loadCreeps(room: Room)
+function loadCreeps(room: Room, rm: M.RoomMemory)
 {
     creeps = room.find<Creep>(FIND_MY_CREEPS);
     creepCount = _.size(creeps);
     miners = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_MINER);
+    builders = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_BUILDER);
+
+    log.info(`Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders}`); //  tslint:disable-line
 }
 
-function _buildMissingCreeps(room: Room, rm: M.RoomMemory)
+function buildMissingCreeps(room: Room, rm: M.RoomMemory)
 {
     let bodyParts: string[];
 
@@ -63,22 +74,36 @@ function _buildMissingCreeps(room: Room, rm: M.RoomMemory)
         //     bodyParts = [WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE];
         // }
 
-        let spawned: boolean = false;
-        _.each(inactiveSpawns, (spawn: Spawn) =>
+        tryToSpawnCreep(inactiveSpawns, bodyParts, M.CreepRoles.ROLE_MINER);
+    }
+
+    if (miners.length === rm.minerTasks.length)
+    {
+        if (builders.length < rm.desiredBuilders)
         {
-            if (!spawned)
-            {
-                const status = _spawnCreep(spawn, bodyParts, M.CreepRoles.ROLE_MINER);
-                if (status === OK)
-                {
-                    spawned = true;
-                }
-            }
-        });
+            bodyParts = [WORK, WORK, CARRY, MOVE];
+            tryToSpawnCreep(inactiveSpawns, bodyParts, M.CreepRoles.ROLE_BUILDER);
+        }
     }
 }
 
-function _spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles): number
+function tryToSpawnCreep(inactiveSpawns: Spawn[], bodyParts: string[], role: M.CreepRoles)
+{
+    let spawned: boolean = false;
+    _.each(inactiveSpawns, (spawn: Spawn) =>
+    {
+        if (!spawned)
+        {
+            const status = spawnCreep(spawn, bodyParts, role);
+            if (status === OK)
+            {
+                spawned = true;
+            }
+        }
+    });
+}
+
+function spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles): number
 {
     const uuid: number = Memory.uuid;
     let status: number | string = spawn.canCreateCreep(bodyParts, undefined);
@@ -86,15 +111,16 @@ function _spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles): num
     const properties: M.CreepMemory =
         {
             log: false,
+            gathering: true,
             role,
-            roleString: M.roleToString(role)
+            roleString: M.roleToString(role),
         };
 
     status = _.isString(status) ? OK : status;
     if (status === OK)
     {
         Memory.uuid = uuid + 1;
-        const creepName: string = spawn.room.name + " - " + role + uuid;
+        const creepName: string = spawn.room.name + " - " + M.roleToString(role) + uuid;
 
         log.info("Started creating new creep: " + creepName);
         if (Config.ENABLE_DEBUG_MODE)
@@ -103,7 +129,15 @@ function _spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles): num
         }
 
         status = spawn.createCreep(bodyParts, creepName, properties);
+        if (status === OK)
+        {
+            spawn.room.visual.text(
+                `🛠️ ${role}`,
+                spawn.pos.x + 1,
+                spawn.pos.y,
+                { align: "left", opacity: 0.8 });
 
+        }
         return _.isString(status) ? OK : status;
     }
     else
@@ -122,6 +156,7 @@ export function initRoomMemory(room: Room, roomName: string)
     const rm: M.RoomMemory = M.m().rooms[roomName];
     rm.roomName = roomName;
     rm.minerTasks = [];
+    rm.desiredBuilders = 2;
 
     let taskIdNum = 0;
 

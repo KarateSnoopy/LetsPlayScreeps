@@ -51,8 +51,6 @@ function mainLoop()
         M.m().uuid = 0;
     }
 
-    log.info(`Time: ${Game.time} MemVer: ${M.m().memVersion} WantMemVer: ${M.MemoryVersion}`);
-
     for (const i in Game.rooms)
     {
         const room: Room = Game.rooms[i];
