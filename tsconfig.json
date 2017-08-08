@@ -7,8 +7,8 @@
     "noResolve": false,
     "experimentalDecorators": true,
     "strict": true,
-    "noUnusedParameters": true,
-    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "noUnusedLocals": false,
     "sourceMap": true,
     "baseUrl": "./src/"
   },

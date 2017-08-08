@@ -1,4 +1,4 @@
-export const MemoryVersion = 7;
+export const MemoryVersion = 8;
 
 export const enum CreepRoles
 {
@@ -62,8 +62,8 @@ export interface MinerTask
     taskId: number;
     minerPosition: PositionPlusTarget;
     assignedMinerName?: string;
+    sourceContainer: PositionPlusTarget | undefined;
 
-    //sourceContainer: PositionPlusTarget | undefined;
     //linkPullFrom: PositionPlusTarget | undefined;
     //linkPushTo: PositionPlusTarget | undefined;
     //linkPushToTarget: PositionPlusTarget | undefined;

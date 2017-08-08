@@ -50,10 +50,10 @@ function loadCreeps(room: Room, rm: M.RoomMemory)
     creepCount = _.size(creeps);
     miners = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_MINER);
     builders = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_BUILDER);
-    structures = room.find<StructureContainer>(FIND_MY_STRUCTURES);
-    containers = _.filter(structures, (structure) => structure.structureType === STRUCTURE_CONTAINER) as StructureContainer[];
+    structures = room.find<StructureContainer>(FIND_STRUCTURES);
+    containers = _.filter(structures, (structure) => structure.structureType == STRUCTURE_CONTAINER) as StructureContainer[]; //  tslint:disable-line
 
-    log.info(`Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders}`); //  tslint:disable-line
+    log.info(`Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length}`); //  tslint:disable-line
 }
 
 function buildMissingCreeps(room: Room, rm: M.RoomMemory)
@@ -215,7 +215,8 @@ export function initRoomMemory(room: Room, roomName: string)
                     const minerTask: M.MinerTask =
                         {
                             minerPosition: minerPos,
-                            taskId: taskIdNum
+                            taskId: taskIdNum,
+                            sourceContainer: undefined
                         };
 
                     rm.minerTasks.push(minerTask);
@@ -304,7 +305,7 @@ function getOptimalContainerPosition(minerTasksForSource: M.MinerTask[], sourceP
         log.info(`Best choice is ${sortedChoices[0].x}, ${sortedChoices[0].y} == ${sortedChoices[0].dist}`);
         const containerPos: M.PositionPlusTarget =
             {
-                targetId: "",
+                targetId: sourcePos.targetId,
                 x: sortedChoices[0].x,
                 y: sortedChoices[0].y
             };

@@ -32,28 +32,29 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
             cm.gathering = true;
         }
 
+        const minerTask = rm.minerTasks.find((t: M.MinerTask) => t.taskId === cm.assignedMineTaskId);
+        if (minerTask === undefined)
+        {
+            return;
+        }
+        //log.info(`${creep.name} got miner task ${minerTask.taskId}`);
+
         if (!cm.gathering)
         {
             //log.info(`${creep.name} miner is working on dropping off`);
-            dropOffEnergy(room, creep, rm);
+            dropOffEnergy(room, creep, rm, minerTask);
         }
         else
         {
             //log.info(`${creep.name} miner is moving to mine`);
-            harvestEnergy(creep, cm, rm);
+            harvestEnergy(creep, cm, rm, minerTask);
         }
     }
 }
 
-function harvestEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
+function harvestEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory, minerTask: M.MinerTask): void
 {
     //log.info(`${creep.name} miner is moving to mine`);
-    const minerTask = rm.minerTasks.find((t: M.MinerTask) => t.taskId === cm.assignedMineTaskId);
-    if (minerTask === undefined)
-    {
-        return;
-    }
-    //log.info(`${creep.name} got miner task ${minerTask.taskId}`);
 
     if (creep.pos.x !== minerTask.minerPosition.x ||
         creep.pos.y !== minerTask.minerPosition.y)
@@ -112,6 +113,7 @@ function buildIfCan(room: Room, creep: Creep, rm: M.RoomMemory): boolean
         // Do I have all construction sites for all the containers?
         if (RoomManager.containers.length !== rm.containerPositions.length)
         {
+            log.info(`RoomManager.containers.length=${RoomManager.containers.length}. rm.containerPositions.length=${rm.containerPositions.length}`);
             _.each(rm.containerPositions, (containerPos: M.PositionPlusTarget) =>
             {
                 log.info(`Creating container at ${containerPos.x}, ${containerPos.y}`);
@@ -127,37 +129,75 @@ function buildIfCan(room: Room, creep: Creep, rm: M.RoomMemory): boolean
     }
 }
 
-function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory): void
+function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.MinerTask): void
 {
-    const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
-        {
-            filter: (structure: Structure) =>
-            {
-                if (structure.structureType === STRUCTURE_EXTENSION)
-                {
-                    const structExt: StructureExtension = structure as StructureExtension;
-                    return structExt.energy < structExt.energyCapacity;
-                }
-                if (structure.structureType === STRUCTURE_SPAWN)
-                {
-                    const structSpawn: StructureSpawn = structure as StructureSpawn;
-                    return structSpawn.energy < structSpawn.energyCapacity;
-                }
-                if (structure.structureType === STRUCTURE_TOWER)
-                {
-                    const structTower: StructureTower = structure as StructureTower;
-                    return structTower.energy < structTower.energyCapacity;
-                }
+    let target: Structure | undefined;
 
-                return false;
-            }
-        });
-
-    if (targets.length > 0)
+    if (minerTask.sourceContainer === undefined ||
+        RoomManager.builders.length + 1 >= rm.desiredBuilders)
     {
-        if (creep.transfer(targets[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+        if (RoomManager.containers.length === rm.containerPositions.length &&
+            RoomManager.builders.length + 1 >= rm.desiredBuilders)
         {
-            creep.moveTo(targets[0], { visualizePathStyle: { stroke: "#ffffff" } });
+            const foundContainerPos = _.find(rm.containerPositions, (containerPos: M.PositionPlusTarget) => containerPos.targetId === minerTask.minerPosition.targetId);
+            if (foundContainerPos !== null)
+            {
+                const roomPos: RoomPosition | null = room.getPositionAt(foundContainerPos.x, foundContainerPos.y);
+                if (roomPos !== null)
+                {
+                    const targets = roomPos.lookFor<Structure>("structure") as Structure[];
+                    if (targets.length > 0)
+                    {
+                        target = targets[0];
+                        // log.info(`Found matching containerPos ${target.id}`);
+                    }
+                }
+            }
+        }
+
+        if (target === undefined)
+        {
+            const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
+                {
+                    filter: (structure: Structure) =>
+                    {
+                        if (structure.structureType === STRUCTURE_EXTENSION)
+                        {
+                            const structExt: StructureExtension = structure as StructureExtension;
+                            return structExt.energy < structExt.energyCapacity;
+                        }
+                        if (structure.structureType === STRUCTURE_SPAWN)
+                        {
+                            const structSpawn: StructureSpawn = structure as StructureSpawn;
+                            return structSpawn.energy < structSpawn.energyCapacity;
+                        }
+                        if (structure.structureType === STRUCTURE_TOWER)
+                        {
+                            const structTower: StructureTower = structure as StructureTower;
+                            return structTower.energy < structTower.energyCapacity;
+                        }
+
+                        return false;
+                    }
+                });
+
+            if (targets.length > 0)
+            {
+                target = targets[0];
+            }
+        }
+    }
+    else
+    {
+        target = Game.getObjectById(minerTask.sourceContainer.targetId) as Structure;
+        log.info(`Going to ${target}`);
+    }
+
+    if (target !== undefined)
+    {
+        if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+        {
+            creep.moveTo(target, { visualizePathStyle: { stroke: "#ffffff" } });
         }
     }
     else
@@ -182,7 +222,6 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory): void
                     }
                 }
             }
-
         }
     }
 }
