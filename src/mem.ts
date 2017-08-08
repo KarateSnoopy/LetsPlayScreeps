@@ -1,3 +1,4 @@
+import { log } from "./lib/logger/log";
 export const MemoryVersion = 8;
 
 export const enum CreepRoles
@@ -77,10 +78,15 @@ export interface MinerTask
 export class RoomMemory
 {
     public roomName: string;
+    public techLevel: number;
     public minerTasks: MinerTask[];
     public desiredBuilders: number;
     public energySources: PositionPlusTarget[];
     public containerPositions: PositionPlusTarget[];
+    public buildsThisTick: number;
+
+    public spawnText?: string;
+    public spawnTextId?: string;
 
     // public ticksSinceUpgrade : number;
     // public desiredWorkHaulers : number;
@@ -91,7 +97,6 @@ export class RoomMemory
     // public ticksSinceDesiredhaulers : number;
     // public spawnId : string | undefined;
     // public roomCount : RoomCount;
-    // public buildsThisTick : number;
     // public paths: {[name: string]: string | undefined};
     // public workHaulerRallyPos : MyPosition;
 
@@ -139,6 +144,7 @@ export interface GameMemory
 
 export interface CreepMemory
 {
+    name: string;
     role: CreepRoles;
     roleString: string;
     log: boolean;
@@ -165,4 +171,14 @@ export function cm(creep: Creep): CreepMemory
 export function m(): GameMemory
 {
     return Memory as any as GameMemory;
+}
+
+export function l(cmLog: CreepMemory, logLine: string)
+{
+    log.info(`${cmLog.name} ${roleToString(cmLog.role)}: ${logLine}`);
+}
+
+export function lerr(cmLog: CreepMemory, logLine: string)
+{
+    log.error(`${cmLog.name} ${roleToString(cmLog.role)}: ${logLine}`);
 }

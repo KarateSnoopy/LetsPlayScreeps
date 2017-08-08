@@ -11,12 +11,32 @@ export let miners: Creep[] = [];
 export let builders: Creep[] = [];
 export let structures: Structure[] = [];
 export let containers: StructureContainer[] = [];
+export let constructionSites: ConstructionSite[] = [];
 
 export function run(room: Room, rm: M.RoomMemory): void
 {
-    profileRecord("loadCreeps", true);
-    loadCreeps(room, rm);
-    profileRecord("loadCreeps", false);
+    if (Game.time % 1 === 0)
+    {
+        profileRecord("scanRoom", true);
+        scanRoom(room, rm);
+        profileRecord("scanRoom", false);
+    }
+
+    if (rm.spawnText !== undefined && rm.spawnTextId !== undefined)
+    {
+        const spawn = Game.getObjectById(rm.spawnTextId) as StructureSpawn;
+
+        room.visual.text(
+            rm.spawnText,
+            spawn.pos.x + 1,
+            spawn.pos.y,
+            { align: "left", opacity: 0.8 });
+
+        if (spawn.spawning === null)
+        {
+            rm.spawnText = undefined;
+        }
+    }
 
     profileRecord("buildMissingCreeps", true);
     buildMissingCreeps(room, rm);
@@ -44,7 +64,32 @@ export function run(room: Room, rm: M.RoomMemory): void
     });
 }
 
-function loadCreeps(room: Room, rm: M.RoomMemory)
+function getTechLevel(room: Room, rm: M.RoomMemory): number
+{
+    // Tech level 1 = building miners
+    // Tech level 2 = building containers
+    // Tech level 3 = building builders
+    // Tech level 4 = ?
+
+    if (miners.length < rm.minerTasks.length - 1)
+    {
+        return 1;
+    }
+
+    if (containers.length !== rm.energySources.length)
+    {
+        return 2;
+    }
+
+    if (builders.length < rm.desiredBuilders - 1)
+    {
+        return 3;
+    }
+
+    return 4;
+}
+
+function scanRoom(room: Room, rm: M.RoomMemory)
 {
     creeps = room.find<Creep>(FIND_MY_CREEPS);
     creepCount = _.size(creeps);
@@ -52,8 +97,11 @@ function loadCreeps(room: Room, rm: M.RoomMemory)
     builders = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_BUILDER);
     structures = room.find<StructureContainer>(FIND_STRUCTURES);
     containers = _.filter(structures, (structure) => structure.structureType === STRUCTURE_CONTAINER) as StructureContainer[];
+    constructionSites = room.find<ConstructionSite>(FIND_MY_CONSTRUCTION_SITES);
+    rm.techLevel = getTechLevel(room, rm);
+    rm.buildsThisTick = 0;
 
-    log.info(`Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length}`);
+    log.info(`TL=${rm.techLevel} Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length}`);
 }
 
 function buildMissingCreeps(room: Room, rm: M.RoomMemory)
@@ -78,30 +126,27 @@ function buildMissingCreeps(room: Room, rm: M.RoomMemory)
         //     bodyParts = [WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE];
         // }
 
-        tryToSpawnCreep(inactiveSpawns, bodyParts, M.CreepRoles.ROLE_MINER);
+        tryToSpawnCreep(inactiveSpawns, bodyParts, M.CreepRoles.ROLE_MINER, rm);
     }
 
-    if (miners.length === rm.minerTasks.length)
+    if (rm.techLevel >= 3)
     {
-        if (containers.length === rm.energySources.length)
+        if (builders.length < rm.desiredBuilders)
         {
-            if (builders.length < rm.desiredBuilders)
-            {
-                bodyParts = [WORK, WORK, CARRY, MOVE];
-                tryToSpawnCreep(inactiveSpawns, bodyParts, M.CreepRoles.ROLE_BUILDER);
-            }
+            bodyParts = [WORK, WORK, CARRY, MOVE];
+            tryToSpawnCreep(inactiveSpawns, bodyParts, M.CreepRoles.ROLE_BUILDER, rm);
         }
     }
 }
 
-function tryToSpawnCreep(inactiveSpawns: Spawn[], bodyParts: string[], role: M.CreepRoles)
+function tryToSpawnCreep(inactiveSpawns: Spawn[], bodyParts: string[], role: M.CreepRoles, rm: M.RoomMemory)
 {
     let spawned: boolean = false;
     _.each(inactiveSpawns, (spawn: Spawn) =>
     {
         if (!spawned)
         {
-            const status = spawnCreep(spawn, bodyParts, role);
+            const status = spawnCreep(spawn, bodyParts, role, rm);
             if (status === OK)
             {
                 spawned = true;
@@ -110,24 +155,25 @@ function tryToSpawnCreep(inactiveSpawns: Spawn[], bodyParts: string[], role: M.C
     });
 }
 
-function spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles): number
+function spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles, rm: M.RoomMemory): number
 {
     const uuid: number = Memory.uuid;
     let status: number | string = spawn.canCreateCreep(bodyParts, undefined);
-
-    const properties: M.CreepMemory =
-        {
-            log: false,
-            gathering: true,
-            role,
-            roleString: M.roleToString(role),
-        };
 
     status = _.isString(status) ? OK : status;
     if (status === OK)
     {
         Memory.uuid = uuid + 1;
         const creepName: string = spawn.room.name + " - " + M.roleToString(role) + uuid;
+
+        const properties: M.CreepMemory =
+            {
+                name: creepName,
+                log: false,
+                gathering: true,
+                role,
+                roleString: M.roleToString(role),
+            };
 
         log.info("Started creating new creep: " + creepName);
         if (Config.ENABLE_DEBUG_MODE)
@@ -136,15 +182,8 @@ function spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles): numb
         }
 
         status = spawn.createCreep(bodyParts, creepName, properties);
-        if (status === OK)
-        {
-            spawn.room.visual.text(
-                `🛠️ ${role}`,
-                spawn.pos.x + 1,
-                spawn.pos.y,
-                { align: "left", opacity: 0.8 });
-
-        }
+        rm.spawnText = `🛠️ ${M.roleToString(role)}`;
+        rm.spawnTextId = spawn.id;
         return _.isString(status) ? OK : status;
     }
     else
@@ -166,6 +205,7 @@ export function initRoomMemory(room: Room, roomName: string)
     rm.energySources = [];
     rm.containerPositions = [];
     rm.desiredBuilders = 2;
+    rm.techLevel = 0;
 
     let taskIdNum = 0;
 
@@ -240,6 +280,16 @@ interface NodeChoice
     dist: number;
 }
 
+export function getFirstSpawn(room: Room): StructureSpawn | null
+{
+    const spawns: Spawn[] = room.find<Spawn>(FIND_MY_SPAWNS);
+    if (spawns.length === 0)
+    {
+        return null;
+    }
+    return spawns[0] as StructureSpawn;
+}
+
 function getOptimalContainerPosition(minerTasksForSource: M.MinerTask[], sourcePos: M.PositionPlusTarget, room: Room): M.PositionPlusTarget | null
 {
     const roomPos: RoomPosition | null = room.getPositionAt(sourcePos.x, sourcePos.y);
@@ -248,12 +298,11 @@ function getOptimalContainerPosition(minerTasksForSource: M.MinerTask[], sourceP
         return null;
     }
 
-    const spawns: Spawn[] = room.find<Spawn>(FIND_MY_SPAWNS);
-    if (spawns.length === 0)
+    const firstSpawn = getFirstSpawn(room);
+    if (firstSpawn == null)
     {
         return null;
     }
-    const firstSpawn = spawns[0];
 
     const choices: NodeChoice[] = [];
     log.info(`finding optimal container pos for ${sourcePos.x}, ${sourcePos.y}`);

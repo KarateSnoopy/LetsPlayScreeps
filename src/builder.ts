@@ -10,9 +10,15 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
         cm.assignedContainerId = RoomManager.getContainerIdWithLeastBuildersAssigned(room, rm);
     }
 
+    room.visual.text(
+        `🛠️`,
+        creep.pos.x,
+        creep.pos.y,
+        { align: "center", opacity: 0.8 });
+
     if (cm.assignedContainerId === undefined)
     {
-        log.error(`${creep.name} is not assigned to container`);
+        M.lerr(cm, `not assigned to container`);
         return;
     }
 
@@ -27,13 +33,13 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
 
     if (cm.gathering)
     {
-        //log.info(`${creep.name} builder is moving to container`);
+        //M.l(cm, `builder is moving to container`);
         pickupEnergy(creep, cm, rm);
     }
     else
     {
-        //log.info(`${creep.name} builder is using energy`);
-        useEnergy(room, creep);
+        //M.l(cm, `builder is using energy`);
+        useEnergy(room, creep, cm);
     }
 }
 
@@ -52,6 +58,7 @@ function pickupEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
         energyCount = creep.carry.energy;
     }
 
+    //creep.say(`withdrawing`);
     const amtEnergy = creep.carryCapacity - energyCount;
     const errCode = creep.withdraw(target, RESOURCE_ENERGY, amtEnergy);
     if (errCode === ERR_NOT_IN_RANGE)
@@ -61,11 +68,11 @@ function pickupEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
 
     if (errCode !== OK && errCode !== ERR_NOT_IN_RANGE && errCode !== ERR_NOT_ENOUGH_RESOURCES)
     {
-        log.error(`Transfer error ${errCode}`);
+        M.l(cm, `Transfer error ${errCode}`);
     }
 }
 
-function useEnergy(room: Room, creep: Creep): void
+function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory): void
 {
     const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
         {
@@ -93,6 +100,7 @@ function useEnergy(room: Room, creep: Creep): void
 
     if (targets.length > 0)
     {
+        //creep.say(`transfering`);
         if (creep.transfer(targets[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         {
             creep.moveTo(targets[0], { visualizePathStyle: { stroke: "#ffffff" } });
@@ -102,13 +110,14 @@ function useEnergy(room: Room, creep: Creep): void
     {
         if (room.controller !== undefined)
         {
+            creep.say(`upgrading`);
             const status = creep.upgradeController(room.controller);
             if (status === ERR_NOT_IN_RANGE)
             {
                 const moveCode = creep.moveTo(room.controller, { visualizePathStyle: { stroke: "#ffffff" } });
                 if (moveCode !== OK && moveCode !== ERR_TIRED)
                 {
-                    log.error(`move and got ${moveCode}`);
+                    M.l(cm, `move and got ${moveCode}`);
                 }
             }
         }
@@ -116,7 +125,7 @@ function useEnergy(room: Room, creep: Creep): void
 }
 
 
-export function buildIfCan(room: Room, creep: Creep): boolean
+export function buildIfCan(room: Room, creep: Creep, cm: M.CreepMemory): boolean
 {
     log.info(`buildIfCan ${room.name}, ${creep.name}`);
 
@@ -129,7 +138,7 @@ export function buildIfCan(room: Room, creep: Creep): boolean
             const moveCode = creep.moveTo(targets[0], { visualizePathStyle: { stroke: "#ffffff" } });
             if (moveCode !== OK && moveCode !== ERR_TIRED)
             {
-                log.error(`move and got ${moveCode}`);
+                M.l(cm, `move and got ${moveCode}`);
             }
         }
         return true;
@@ -137,5 +146,89 @@ export function buildIfCan(room: Room, creep: Creep): boolean
     else
     {
         return false;
+    }
+}
+
+function tryToBuildExtension(rm: M.RoomMemory, creep: Creep, cm: M.CreepMemory, room: Room)
+{
+    // build extensions close to sources
+    let closeToSource = false;
+    for (const sourcePos of rm.energySources)
+    {
+        const sourceRoomPos = room.getPositionAt(sourcePos.x, sourcePos.y);
+        if (sourceRoomPos != null)
+        {
+            const range = sourceRoomPos.getRangeTo(creep.pos);
+            if (range < 12)
+            {
+                M.l(cm, `Range To Source: ${range}`);
+                closeToSource = true;
+                break;
+            }
+        }
+    }
+
+    const firstSpawn = RoomManager.getFirstSpawn(room);
+    let closeToSpawn = true;
+    if (firstSpawn != null)
+    {
+        closeToSpawn = false;
+
+        // and close to spawn if spawn in room
+        const range = firstSpawn.pos.getRangeTo(creep.pos);
+        if (range < 6 && range > 2)
+        {
+            closeToSpawn = true;
+            M.l(cm, `Range To Spawn: ${range}`);
+        }
+    }
+
+    if (closeToSource && closeToSpawn)
+    {
+        M.l(cm, `trying to build extension`);
+
+        let tooCloseToOther = false;
+        const extensions = room.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_EXTENSION } }) as StructureExtension[];
+        for (const extension of extensions)
+        {
+            const range = extension.pos.getRangeTo(creep);
+            if (range <= 1)
+            {
+                M.l(cm, `Too close to another extension: ${range}`);
+                tooCloseToOther = true;
+                break;
+            }
+        }
+
+        if (!tooCloseToOther)
+        {
+            const extensionConstructionSites = _.filter(RoomManager.constructionSites, (site: ConstructionSite) => site.structureType === STRUCTURE_EXTENSION);
+            for (const constructionSite of extensionConstructionSites)
+            {
+                const range = constructionSite.pos.getRangeTo(creep);
+                if (range <= 1)
+                {
+                    M.l(cm, `Too close to another ext const site: ${range}`);
+                    tooCloseToOther = true;
+                    break;
+                }
+            }
+        }
+
+        if (!tooCloseToOther)
+        {
+            const errCode = creep.room.createConstructionSite(creep.pos, STRUCTURE_EXTENSION);
+            if (errCode === OK)
+            {
+                M.l(cm, `Creep created extension at ${creep.pos}`);
+                //rm.roomCount.constructionSites++;
+                rm.buildsThisTick++;
+                return;
+            }
+            else
+            {
+                M.l(cm, `ERROR: created extension at ${creep.pos} ${errCode}`);
+            }
+        }
     }
 }
