@@ -1,4 +1,4 @@
-export const MemoryVersion = 90;
+export const MemoryVersion = 2;
 
 export const enum CreepRoles
 {
@@ -59,6 +59,7 @@ export interface RoomPositionPlusTarget
 
 export interface MinerTask
 {
+    taskId: number;
     minerPosition: PositionPlusTarget;
     assignedMinerName?: string;
 
@@ -201,7 +202,7 @@ export interface CreepMemory
     // path ?: CreepPath;
     // assignedCreepTaskId ?: number;
     // assignedEnergyTaskId ?: number;
-    // assignedMineTaskId ?: number;
+    assignedMineTaskId?: number;
     // assignedPullEnergyFromStorage : boolean;
     // attackWave ?: CreepAttackWaveMemory;
     // claimerRoomTarget ?: string;

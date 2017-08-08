@@ -38,56 +38,6 @@ function memoryInit()
     mem.memVersion = M.MemoryVersion;
 }
 
-function initRoomMemory(room: Room, roomName: string)
-{
-    const rm: M.RoomMemory = M.m().rooms[roomName];
-    rm.roomName = roomName;
-    rm.minerTasks = [];
-
-    const sources = room.find(FIND_SOURCES);
-    for (const sourceName in sources)
-    {
-        const source: Source = sources[sourceName] as Source;
-        const positions = [
-            [source.pos.x - 1, source.pos.y - 1],
-            [source.pos.x - 1, source.pos.y + 0],
-            [source.pos.x - 1, source.pos.y + 1],
-
-            [source.pos.x + 1, source.pos.y - 1],
-            [source.pos.x + 1, source.pos.y + 0],
-            [source.pos.x + 1, source.pos.y + 1],
-
-            [source.pos.x + 0, source.pos.y - 1],
-            [source.pos.x + 0, source.pos.y + 1]
-        ];
-
-        for (const pos of positions)
-        {
-            const roomPos: RoomPosition | null = room.getPositionAt(pos[0], pos[1]);
-            if (roomPos !== null)
-            {
-                const found: string = roomPos.lookFor(LOOK_TERRAIN) as any;
-                if (found != "wall") //  tslint:disable-line
-                {
-                    log.info("pos " + pos[0] + "," + pos[1] + "=" + found);
-                    const minerPos: M.PositionPlusTarget =
-                        {
-                            targetId: source.id,
-                            x: pos[0],
-                            y: pos[1]
-                        };
-                    const minerTask: M.MinerTask =
-                        {
-                            minerPosition: minerPos
-                        };
-
-                    rm.minerTasks.push(minerTask);
-                }
-            }
-        }
-    }
-}
-
 function mainLoop()
 {
     if (M.m().memVersion === undefined ||
@@ -101,7 +51,7 @@ function mainLoop()
         M.m().uuid = 0;
     }
 
-    log.info("Time: " + Game.time + " MemVer: " + M.m().memVersion + " WantMemVer: " + M.MemoryVersion);
+    log.info(`Time: ${Game.time} MemVer: ${M.m().memVersion} WantMemVer: ${M.MemoryVersion}`);
 
     for (const i in Game.rooms)
     {
@@ -109,13 +59,18 @@ function mainLoop()
         const rm: M.RoomMemory = M.m().rooms[room.name];
         if (rm === undefined)
         {
-            log.info("Init room mem for " + room.name);
+            log.info(`Init room mem for ${room.name}`);
             Memory.rooms[room.name] = {};
-            initRoomMemory(room, room.name);
+            RoomManager.initRoomMemory(room, room.name);
         }
         else
         {
             RoomManager.run(room, rm);
+        }
+
+        if (Game.time % 10 === 0)
+        {
+            RoomManager.cleanupAssignMiners(rm);
         }
     }
 

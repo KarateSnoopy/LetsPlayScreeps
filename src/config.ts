@@ -29,7 +29,7 @@ export const LOG_LOAD_SOURCE_MAP: boolean = true;
 /**
  * Maximum padding for source links (for aligning log output).
  */
-export const LOG_MAX_PAD: number = 100;
+export const LOG_MAX_PAD: number = 30;
 
 /**
  * VSC location, used to create links back to source.

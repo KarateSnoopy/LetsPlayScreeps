@@ -1,21 +1,73 @@
-export function run(creep: Creep): void
+import * as M from "./mem";
+import { log } from "./lib/logger/log";
+
+export function run(creep: Creep, rm: M.RoomMemory): void
 {
-    if (_.sum(creep.carry) === creep.carryCapacity)
+    const cm = M.cm(creep);
+    if (cm.assignedMineTaskId === undefined)
     {
-        dropOffEnergy(creep);
+        log.info(`${creep.name} miner has no mining task`);
+        const unassignedTasks = _.filter(rm.minerTasks, (t: M.MinerTask) => t.assignedMinerName === undefined);
+        log.info(`unassignedTask.length: ${unassignedTasks.length}`);
+        if (unassignedTasks.length === 0)
+        {
+            log.error("No unassigned miner tasks found");
+        }
+        else
+        {
+            unassignedTasks[0].assignedMinerName = creep.name;
+            cm.assignedMineTaskId = unassignedTasks[0].taskId;
+            log.info(`Now assigned miner task ${cm.assignedMineTaskId}`);
+        }
     }
     else
     {
-        const energySource = creep.room.find<Source>(FIND_SOURCES_ACTIVE)[0];
-        moveToMine(creep, energySource);
+        if (_.sum(creep.carry) === creep.carryCapacity)
+        {
+            //log.info(`${creep.name} miner is working on dropping off`);
+            dropOffEnergy(creep);
+        }
+        else
+        {
+            //log.info(`${creep.name} miner is moving to mine`);
+            moveToMine(creep, cm, rm);
+        }
     }
 }
 
-function moveToMine(creep: Creep, target: Source): void
+function moveToMine(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
 {
-    if (creep.harvest(target) === ERR_NOT_IN_RANGE)
+    //log.info(`${creep.name} miner is moving to mine`);
+    const minerTask = rm.minerTasks.find((t: M.MinerTask) => t.taskId === cm.assignedMineTaskId);
+    if (minerTask === undefined)
     {
-        creep.moveTo(target.pos);
+        return;
+    }
+    //log.info(`${creep.name} got miner task ${minerTask.taskId}`);
+
+    if (creep.pos.x !== minerTask.minerPosition.x ||
+        creep.pos.y !== minerTask.minerPosition.y)
+    {
+        //log.info(`${creep.name} is not in position at ${minerTask.minerPosition.x}, ${minerTask.minerPosition.y}`);
+        const pos = creep.room.getPositionAt(minerTask.minerPosition.x, minerTask.minerPosition.y);
+        if (pos !== null)
+        {
+            creep.moveTo(pos, { visualizePathStyle: { stroke: "#0000ff" } });
+        }
+        else
+        {
+            log.error(`Can't find ${pos}`);
+        }
+    }
+    else
+    {
+        //log.info(`${creep.name} is in position at ${minerTask.minerPosition.x}, ${minerTask.minerPosition.y}`);
+        const source = Game.getObjectById(minerTask.minerPosition.targetId) as Source;
+        const errCode = creep.harvest(source);
+        if (errCode !== OK && errCode !== ERR_NOT_IN_RANGE && errCode !== ERR_NOT_ENOUGH_RESOURCES)
+        {
+            log.error(`Harvest error ${errCode}`);
+        }
     }
 }
 

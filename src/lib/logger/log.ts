@@ -222,6 +222,7 @@ export class Log
     {
         const newPad = Math.max(visibleText.length, this._maxFileString);
         this._maxFileString = Math.min(newPad, Config.LOG_MAX_PAD);
+        this._maxFileString = Config.LOG_MAX_PAD;
 
         return `|${_.padRight(line, line.length + this._maxFileString - visibleText.length, " ")}|`;
     }

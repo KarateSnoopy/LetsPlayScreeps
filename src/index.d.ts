@@ -1,10 +1,3 @@
-interface Memory
-{
-    uuid: number;
-    log: any;
-    Profiler: Profiler;
-}
-
 declare namespace NodeJS
 {
     interface Global
