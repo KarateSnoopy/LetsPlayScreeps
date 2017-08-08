@@ -9,6 +9,8 @@ export let creeps: Creep[];
 export let creepCount: number = 0;
 export let miners: Creep[] = [];
 export let builders: Creep[] = [];
+export let structures: Structure[] = [];
+export let containers: StructureContainer[] = [];
 
 export function run(room: Room, rm: M.RoomMemory): void
 {
@@ -48,6 +50,8 @@ function loadCreeps(room: Room, rm: M.RoomMemory)
     creepCount = _.size(creeps);
     miners = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_MINER);
     builders = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_BUILDER);
+    structures = room.find<StructureContainer>(FIND_MY_STRUCTURES);
+    containers = _.filter(structures, (structure) => structure.structureType === STRUCTURE_CONTAINER) as StructureContainer[];
 
     log.info(`Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders}`); //  tslint:disable-line
 }
@@ -79,10 +83,13 @@ function buildMissingCreeps(room: Room, rm: M.RoomMemory)
 
     if (miners.length === rm.minerTasks.length)
     {
-        if (builders.length < rm.desiredBuilders)
+        if (containers.length === rm.energySources.length)
         {
-            bodyParts = [WORK, WORK, CARRY, MOVE];
-            tryToSpawnCreep(inactiveSpawns, bodyParts, M.CreepRoles.ROLE_BUILDER);
+            if (builders.length < rm.desiredBuilders)
+            {
+                bodyParts = [WORK, WORK, CARRY, MOVE];
+                tryToSpawnCreep(inactiveSpawns, bodyParts, M.CreepRoles.ROLE_BUILDER);
+            }
         }
     }
 }
@@ -156,6 +163,8 @@ export function initRoomMemory(room: Room, roomName: string)
     const rm: M.RoomMemory = M.m().rooms[roomName];
     rm.roomName = roomName;
     rm.minerTasks = [];
+    rm.energySources = [];
+    rm.containerPositions = [];
     rm.desiredBuilders = 2;
 
     let taskIdNum = 0;
@@ -164,6 +173,15 @@ export function initRoomMemory(room: Room, roomName: string)
     for (const sourceName in sources)
     {
         const source: Source = sources[sourceName] as Source;
+
+        const sourcePos: M.PositionPlusTarget =
+            {
+                targetId: source.id,
+                x: source.pos.x,
+                y: source.pos.y
+            };
+        rm.energySources.push(sourcePos);
+
         const positions = [
             [source.pos.x - 1, source.pos.y - 1],
             [source.pos.x - 1, source.pos.y + 0],
@@ -177,6 +195,7 @@ export function initRoomMemory(room: Room, roomName: string)
             [source.pos.x + 0, source.pos.y + 1]
         ];
 
+        const minerTasksForSource: M.MinerTask[] = [];
         for (const pos of positions)
         {
             const roomPos: RoomPosition | null = room.getPositionAt(pos[0], pos[1]);
@@ -200,10 +219,100 @@ export function initRoomMemory(room: Room, roomName: string)
                         };
 
                     rm.minerTasks.push(minerTask);
+                    minerTasksForSource.push(minerTask);
+                }
+            }
+        }
+
+        const containerPos = getOptimalContainerPosition(minerTasksForSource, sourcePos, room);
+        if (containerPos !== null)
+        {
+            rm.containerPositions.push(containerPos);
+        }
+    }
+}
+
+interface NodeChoice
+{
+    x: number;
+    y: number;
+    dist: number;
+}
+
+function getOptimalContainerPosition(minerTasksForSource: M.MinerTask[], sourcePos: M.PositionPlusTarget, room: Room): M.PositionPlusTarget | null
+{
+    const roomPos: RoomPosition | null = room.getPositionAt(sourcePos.x, sourcePos.y);
+    if (roomPos === null)
+    {
+        return null;
+    }
+
+    const spawns: Spawn[] = room.find<Spawn>(FIND_MY_SPAWNS);
+    if (spawns.length === 0)
+    {
+        return null;
+    }
+    const firstSpawn = spawns[0];
+
+    const choices: NodeChoice[] = [];
+    log.info(`finding optimal container pos for ${sourcePos.x}, ${sourcePos.y}`);
+    for (let x = sourcePos.x - 2; x <= sourcePos.x + 2; x++)
+    {
+        for (let y = sourcePos.y - 2; y <= sourcePos.y + 2; y++)
+        {
+            const range = roomPos.getRangeTo(x, y);
+            if (range === 2)
+            {
+                const searchPos: RoomPosition | null = room.getPositionAt(x, y);
+                if (searchPos !== null)
+                {
+                    const found: string = searchPos.lookFor(LOOK_TERRAIN) as any;
+                    if (found != "wall") //  tslint:disable-line
+                    {
+                        // log.info(`${x}, ${y} == ${range} is not wall`);
+
+                        let dist = _.sum(minerTasksForSource, (task: M.MinerTask) =>
+                        {
+                            const taskPos: RoomPosition | null = room.getPositionAt(task.minerPosition.x, task.minerPosition.y);
+                            if (taskPos === null)
+                            {
+                                return 0;
+                            }
+                            else
+                            {
+                                return taskPos.getRangeTo(x, y);
+                            }
+                        });
+                        // log.info(`${x}, ${y} == ${dist} total`);
+                        dist += firstSpawn.pos.getRangeTo(x, y);
+                        log.info(`${x}, ${y} == ${dist} total dist including to spawn`);
+
+                        const choice: NodeChoice =
+                            {
+                                x, y, dist
+                            };
+                        choices.push(choice);
+                    }
                 }
             }
         }
     }
+
+    const sortedChoices = _.sortBy(choices, (choice: NodeChoice) => choice.dist);
+    if (sortedChoices.length > 0)
+    {
+        log.info(`Best choice is ${sortedChoices[0].x}, ${sortedChoices[0].y} == ${sortedChoices[0].dist}`);
+        const containerPos: M.PositionPlusTarget =
+            {
+                targetId: "",
+                x: sortedChoices[0].x,
+                y: sortedChoices[0].y
+            };
+
+        return containerPos;
+    }
+
+    return null;
 }
 
 export function cleanupAssignMiners(rm: M.RoomMemory)

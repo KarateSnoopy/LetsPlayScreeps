@@ -1,6 +1,6 @@
 import * as M from "./mem";
 import { log } from "./lib/logger/log";
-import * as builder from "./builder";
+import * as RoomManager from "./roomManager";
 
 export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
 {
@@ -35,7 +35,7 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
         if (!cm.gathering)
         {
             //log.info(`${creep.name} miner is working on dropping off`);
-            dropOffEnergy(room, creep);
+            dropOffEnergy(room, creep, rm);
         }
         else
         {
@@ -81,7 +81,53 @@ function harvestEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
     }
 }
 
-function dropOffEnergy(room: Room, creep: Creep): void
+function buildIfCan(room: Room, creep: Creep, rm: M.RoomMemory): boolean
+{
+    log.info(`buildIfCan ${room.name}, ${creep.name}`);
+
+    // Find container construction sites
+    const targets = room.find(FIND_CONSTRUCTION_SITES,
+        {
+            filter: (constructionSite: ConstructionSite) =>
+            {
+                return (constructionSite.structureType === STRUCTURE_CONTAINER);
+            }
+        }) as ConstructionSite[];
+
+    if (targets.length > 0)
+    {
+        const status = creep.build(targets[0]);
+        if (status === ERR_NOT_IN_RANGE)
+        {
+            const moveCode = creep.moveTo(targets[0], { visualizePathStyle: { stroke: "#ffffff" } });
+            if (moveCode !== OK && moveCode !== ERR_TIRED)
+            {
+                log.error(`move and got ${moveCode}`);
+            }
+        }
+        return true;
+    }
+    else
+    {
+        // Do I have all construction sites for all the containers?
+        if (RoomManager.containers.length !== rm.containerPositions.length)
+        {
+            _.each(rm.containerPositions, (containerPos: M.PositionPlusTarget) =>
+            {
+                log.info(`Creating container at ${containerPos.x}, ${containerPos.y}`);
+                const roomPos: RoomPosition | null = room.getPositionAt(containerPos.x, containerPos.y);
+                if (roomPos !== null)
+                {
+                    creep.room.createConstructionSite(roomPos, STRUCTURE_CONTAINER);
+                }
+            });
+        }
+
+        return false;
+    }
+}
+
+function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory): void
 {
     const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
         {
@@ -121,7 +167,7 @@ function dropOffEnergy(room: Room, creep: Creep): void
             let isBuilding = false;
             if (room.controller.ticksToDowngrade > 1000)
             {
-                isBuilding = builder.buildIfCan(room, creep);
+                isBuilding = buildIfCan(room, creep, rm);
             }
 
             if (!isBuilding)

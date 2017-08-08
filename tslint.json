@@ -8,6 +8,7 @@
     "ordered-imports": false,
     "comment-format": false,
     "object-literal-sort-keys": false,
+    "max-line-length": false,
     "no-consecutive-blank-lines": false,
     "interface-name": [false],
     "no-console": [false],
