@@ -12,6 +12,8 @@ export let builders: Creep[] = [];
 export let structures: Structure[] = [];
 export let containers: StructureContainer[] = [];
 export let constructionSites: ConstructionSite[] = [];
+export let extensions: StructureExtension[] = [];
+export let notRoadNeedingRepair: Structure[] = [];
 
 export function run(room: Room, rm: M.RoomMemory): void
 {
@@ -72,7 +74,7 @@ export function run(room: Room, rm: M.RoomMemory): void
     });
 }
 
-function getTechLevel(room: Room, rm: M.RoomMemory): number
+function getTechLevel(room: Room, rm: M.RoomMemory, numExtensionToBuild: number): number
 {
     // Tech level 1 = building miners
     // Tech level 2 = building containers
@@ -94,7 +96,12 @@ function getTechLevel(room: Room, rm: M.RoomMemory): number
         return 3;
     }
 
-    return 4;
+    if (extensions.length < numExtensionToBuild)
+    {
+        return 4;
+    }
+
+    return 5;
 }
 
 function scanRoom(room: Room, rm: M.RoomMemory)
@@ -105,13 +112,49 @@ function scanRoom(room: Room, rm: M.RoomMemory)
     builders = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_BUILDER);
     structures = room.find<StructureContainer>(FIND_STRUCTURES);
     containers = _.filter(structures, (structure) => structure.structureType === STRUCTURE_CONTAINER) as StructureContainer[];
+    extensions = _.filter(structures, (structure) => structure.structureType === STRUCTURE_EXTENSION) as StructureExtension[];
+    notRoadNeedingRepair = _.filter(structures, (structure) =>
+    {
+        if (structure.structureType !== STRUCTURE_ROAD)
+        {
+            const hitsToRepair = structure.hitsMax - structure.hits;
+            if (hitsToRepair > structure.hitsMax * 0.25)
+            {
+                return true;
+            }
+        }
+        return false;
+    }) as StructureExtension[];
     constructionSites = room.find<ConstructionSite>(FIND_MY_CONSTRUCTION_SITES);
-    rm.techLevel = getTechLevel(room, rm);
+
+    constructionSites = _.sortBy(constructionSites, (constructionSite: ConstructionSite) => constructionSite.id);
+    notRoadNeedingRepair = _.sortBy(notRoadNeedingRepair, (struct: Structure) => struct.id);
+
+    let numTownersToBuild = 0;
+    let numExtensionToBuild = 0;
+    if (room.controller != null)
+    {
+        switch (room.controller.level)
+        {
+            case 2: numTownersToBuild = 0; numExtensionToBuild = 5; break;
+            case 3: numTownersToBuild = 1; numExtensionToBuild = 10; break;
+            case 4: numTownersToBuild = 1; numExtensionToBuild = 20; break;
+            case 5: numTownersToBuild = 2; numExtensionToBuild = 30; break;
+            case 6: numTownersToBuild = 2; numExtensionToBuild = 40; break;
+            case 7: numTownersToBuild = 3; numExtensionToBuild = 50; break;
+            case 8: numTownersToBuild = 8; numExtensionToBuild = 60; break;
+        }
+    }
+
+    rm.techLevel = getTechLevel(room, rm, numExtensionToBuild);
     rm.buildsThisTick = 0;
 
-    buildExtension(rm, room);
+    if (Game.time % 10 === 0)
+    {
+        buildExtension(rm, room, numExtensionToBuild);
+    }
 
-    log.info(`TL=${rm.techLevel} Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length}`);
+    log.info(`TL=${rm.techLevel} Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length} Ext=${extensions.length}/${numExtensionToBuild} R:${notRoadNeedingRepair.length}`);
 }
 
 function buildMissingCreeps(room: Room, rm: M.RoomMemory)
@@ -251,7 +294,7 @@ function getOptimalExtensionPosition(room: Room, rm: M.RoomMemory, extPositions:
                     _.each(sources, (source: Source) =>
                     {
                         const rangeToSource = source.pos.getRangeTo(x, y);
-                        if (rangeToSource <= 2)
+                        if (rangeToSource <= 3)
                         {
                             tooClose = true;
                         }
@@ -288,54 +331,22 @@ function getOptimalExtensionPosition(room: Room, rm: M.RoomMemory, extPositions:
         return roomPos;
     }
 
-
-    //         for (const extension of extensions)
-    //         {
-    //             const range = extension.pos.getRangeTo(creep);
-    //             if (range <= 1)
-    //             {
-    //                 log.info(`${M.l(cm)}Too close to another extension: ${range}`);
-    //                 tooCloseToOther = true;
-    //                 break;
-    //             }
-    //         }
-
-
     return null;
 }
 
-function buildExtension(rm: M.RoomMemory, room: Room)
+function buildExtension(rm: M.RoomMemory, room: Room, numExtensionToBuild: number)
 {
-    if (room.controller == null)
-    {
-        return;
-    }
-
-    let numTownersToBuild = 0;
-    let numExtensionToBuild = 0;
-    switch (room.controller.level)
-    {
-        case 2: numTownersToBuild = 0; numExtensionToBuild = 5; break;
-        case 3: numTownersToBuild = 1; numExtensionToBuild = 10; break;
-        case 4: numTownersToBuild = 1; numExtensionToBuild = 20; break;
-        case 5: numTownersToBuild = 2; numExtensionToBuild = 30; break;
-        case 6: numTownersToBuild = 2; numExtensionToBuild = 40; break;
-        case 7: numTownersToBuild = 3; numExtensionToBuild = 50; break;
-        case 8: numTownersToBuild = 8; numExtensionToBuild = 60; break;
-    }
-
-    const extensions = room.find(FIND_STRUCTURES, { filter: (structure: Structure) => (structure.structureType === STRUCTURE_EXTENSION) });
     const extConstructionSites = room.find(FIND_MY_CONSTRUCTION_SITES, { filter: (structure: ConstructionSite) => (structure.structureType === STRUCTURE_EXTENSION) });
     const numExtensionsBuilt = extensions.length + extConstructionSites.length;
     const numExtensionsNeeded = numExtensionToBuild - numExtensionsBuilt;
-    log.info(`numExtensionToBuild=${numExtensionToBuild} numExtensionsBuilt=${numExtensionsBuilt} numExtensionsNeeded=${numExtensionsNeeded}`);
-    const extPos: RoomPosition[] = [];
-    _.each(extensions, (extension: StructureExtension) => extPos.push(extension.pos));
-    _.each(extConstructionSites, (extension: ConstructionSite) => extPos.push(extension.pos));
 
-    //for (let i = 0; i < numExtensionsNeeded; i++)
     if (numExtensionsNeeded > 0)
     {
+        const extPos: RoomPosition[] = [];
+        _.each(extensions, (extension: StructureExtension) => extPos.push(extension.pos));
+        _.each(extConstructionSites, (extension: ConstructionSite) => extPos.push(extension.pos));
+
+        log.info(`numExtensionsNeeded=${numExtensionsNeeded}`);
         const roomPos: RoomPosition | null = getOptimalExtensionPosition(room, rm, extPos);
         if (roomPos != null)
         {

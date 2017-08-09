@@ -22,11 +22,6 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
         return;
     }
 
-    if (rm.buildsThisTick === 0)
-    {
-        //tryToBuildExtension(rm, creep, cm, room);
-    }
-
     if (cm.gathering && creep.carry.energy === creep.carryCapacity)
     {
         cm.gathering = false;
@@ -48,6 +43,8 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
         //log.info(`${M.l(cm)}builder is using energy`);
         useEnergy(room, creep, cm);
     }
+
+    tryToBuildRoad(rm, creep, room, cm);
 }
 
 function pickupEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
@@ -131,10 +128,11 @@ function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory): void
             target = targets[0];
             cm.assignedTargetId = target.id;
         }
-        else
-        {
-            cm.isUpgradingController = true;
-        }
+    }
+
+    if (room.controller !== undefined && room.controller.ticksToDowngrade < 1000)
+    {
+        target = undefined;
     }
 
     if (target !== undefined)
@@ -147,8 +145,22 @@ function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory): void
     }
     else
     {
+        if (room.controller !== undefined && room.controller.ticksToDowngrade > 1000)
+        {
+            if (repairIfCan(room, creep, cm))
+            {
+                return;
+            }
+
+            if (buildIfCan(room, creep, cm))
+            {
+                return;
+            }
+        }
+
         if (room.controller !== undefined)
         {
+            cm.isUpgradingController = true;
             //creep.say(`upgrading`);
             const status = creep.upgradeController(room.controller);
             if (status === ERR_NOT_IN_RANGE)
@@ -163,18 +175,55 @@ function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory): void
     }
 }
 
-
-export function buildIfCan(room: Room, creep: Creep, cm: M.CreepMemory): boolean
+function repairIfCan(room: Room, creep: Creep, cm: M.CreepMemory): boolean
 {
-    log.info(`buildIfCan ${room.name}, ${creep.name}`);
-
-    const targets = room.find(FIND_CONSTRUCTION_SITES) as ConstructionSite[];
-    if (targets.length > 0)
+    let repairTarget: Structure | undefined;
+    if (RoomManager.notRoadNeedingRepair.length > 0)
     {
-        const status = creep.build(targets[0]);
+        repairTarget = RoomManager.notRoadNeedingRepair[0];
+    }
+
+    if (repairTarget === undefined)
+    {
+        const structuresUnderFeet = creep.pos.lookFor(LOOK_STRUCTURES) as Structure[];
+        if (structuresUnderFeet.length > 0)
+        {
+            const roadsUnderFeed = _.filter(structuresUnderFeet, (structure) => structure.structureType === STRUCTURE_ROAD) as StructureRoad[];
+            if (roadsUnderFeed.length > 0)
+            {
+                if (roadsUnderFeed[0].hits + 50 < roadsUnderFeed[0].hitsMax)
+                {
+                    repairTarget = roadsUnderFeed[0];
+                }
+            }
+        }
+    }
+
+    if (repairTarget !== undefined)
+    {
+        const status = creep.repair(repairTarget);
         if (status === ERR_NOT_IN_RANGE)
         {
-            const moveCode = creep.moveTo(targets[0], { visualizePathStyle: { stroke: "#ffffff" } });
+            const moveCode = creep.moveTo(repairTarget, { visualizePathStyle: { stroke: "#ffffff" } });
+            if (moveCode !== OK && moveCode !== ERR_TIRED)
+            {
+                log.info(`${M.l(cm)}move and got ${moveCode}`);
+            }
+        }
+        return true;
+    }
+
+    return false;
+}
+
+function buildIfCan(room: Room, creep: Creep, cm: M.CreepMemory): boolean
+{
+    if (RoomManager.constructionSites.length > 0)
+    {
+        const status = creep.build(RoomManager.constructionSites[0]);
+        if (status === ERR_NOT_IN_RANGE)
+        {
+            const moveCode = creep.moveTo(RoomManager.constructionSites[0], { visualizePathStyle: { stroke: "#ffffff" } });
             if (moveCode !== OK && moveCode !== ERR_TIRED)
             {
                 log.info(`${M.l(cm)}move and got ${moveCode}`);
@@ -185,5 +234,23 @@ export function buildIfCan(room: Room, creep: Creep, cm: M.CreepMemory): boolean
     else
     {
         return false;
+    }
+}
+
+
+function tryToBuildRoad(rm: M.RoomMemory, creep: Creep, room: Room, cm: M.CreepMemory)
+{
+    if ((Game.time + 5) % 10 === 0)
+    {
+        if (rm.techLevel >= 5 && rm.buildsThisTick === 0)
+        {
+            const errCode = creep.room.createConstructionSite(creep.pos, STRUCTURE_ROAD);
+            if (errCode === OK)
+            {
+                log.info(`${M.l(cm)} Created road at ${creep.pos}`);
+                rm.buildsThisTick++;
+                return;
+            }
+        }
     }
 }
