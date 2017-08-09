@@ -79,9 +79,10 @@ function getTechLevel(room: Room, rm: M.RoomMemory, numExtensionToBuild: number)
     // Tech level 1 = building miners
     // Tech level 2 = building containers
     // Tech level 3 = building builders
-    // Tech level 4 = ?
+    // Tech level 4 = building extensions
+    // Tech level 5 = ?
 
-    if (miners.length < rm.minerTasks.length - 1)
+    if (miners.length < rm.minerTasks.length - 2)
     {
         return 1;
     }
@@ -91,7 +92,7 @@ function getTechLevel(room: Room, rm: M.RoomMemory, numExtensionToBuild: number)
         return 2;
     }
 
-    if (builders.length < rm.desiredBuilders - 1)
+    if (builders.length < rm.desiredBuilders - 2)
     {
         return 3;
     }
@@ -147,6 +148,7 @@ function scanRoom(room: Room, rm: M.RoomMemory)
     }
 
     rm.techLevel = getTechLevel(room, rm, numExtensionToBuild);
+    rm.energyLevel = getRoomEnergyLevel(rm, room);
     rm.buildsThisTick = 0;
 
     if (Game.time % 10 === 0)
@@ -168,16 +170,35 @@ function buildMissingCreeps(room: Room, rm: M.RoomMemory)
         },
     });
 
+    /*
+    MOVE              50    Decreases fatigue by 2 points per tick.
+    WORK              100   Harvests 2 energy units from a source per tick.
+                            Builds a structure for 5 energy units per tick.
+                            Repairs a structure for 100 hits per tick consuming 1 energy unit per tick.
+                            Upgrades a controller for 1 energy unit per tick.
+                            Dismantles a structure for 50 hits per tick returning 0.25 energy unit per tick.
+    CARRY             50    Can contain up to 50 resource units.
+    ATTACK            80    Attacks another creep/structure with 30 hits per tick in a short-ranged attack.
+    RANGED_ATTACK     150   Attacks another single creep/structure with 10 hits per tick in a long-range attack up to 3 squares long.
+                            Attacks all hostile creeps/structures within 3 squares range with 1-4-10 hits (depending on the range).
+    HEAL              250   Heals self or another creep restoring 12 hits per tick in short range or 4 hits per tick at a distance.
+    CLAIM             600   Claims a neutral room controller.
+                            Reserves a neutral room controller for 1 tick per body part.
+                            Attacks a hostile room controller downgrade or reservation timer with 1 tick per 5 body parts.
+                            A creep with this body part will have a reduced life time of 500 ticks and cannot be renewed.
+    TOUGH             10    No effect, just additional hit points to the creep's body.
+    http://screeps.wikia.com/wiki/Creep#Movement
+    */
+
     if (miners.length < rm.minerTasks.length)
     {
-        bodyParts = [WORK, WORK, CARRY, MOVE];
-        // if (miners.length < 1 || room.energyCapacityAvailable <= 800)
-        // {
-        //     bodyParts = [WORK, WORK, CARRY, MOVE];
-        // } else if (room.energyCapacityAvailable > 800)
-        // {
-        //     bodyParts = [WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE];
-        // }
+        switch (rm.energyLevel)
+        {
+            case 1: bodyParts = [WORK, WORK, CARRY, MOVE]; break; // 300
+            case 2: bodyParts = [WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE]; break; // 550
+            default:
+            case 3: bodyParts = [WORK, WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE]; break; // 6x100,3x50=750
+        }
 
         tryToSpawnCreep(inactiveSpawns, bodyParts, M.CreepRoles.ROLE_MINER, rm);
     }
@@ -186,7 +207,14 @@ function buildMissingCreeps(room: Room, rm: M.RoomMemory)
     {
         if (builders.length < rm.desiredBuilders)
         {
-            bodyParts = [WORK, WORK, CARRY, MOVE];
+            switch (rm.energyLevel)
+            {
+                case 1: bodyParts = [WORK, CARRY, CARRY, MOVE]; break; // 250
+                case 2: bodyParts = [WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE]; break; // 550;
+                default:
+                case 3: bodyParts = [WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE]; break; // 750;
+            }
+
             tryToSpawnCreep(inactiveSpawns, bodyParts, M.CreepRoles.ROLE_BUILDER, rm);
         }
     }
@@ -375,6 +403,7 @@ export function initRoomMemory(room: Room, roomName: string)
     rm.minerTasks = [];
     rm.energySources = [];
     rm.containerPositions = [];
+    rm.extensionIdsAssigned = [];
     rm.desiredBuilders = 6;
     rm.techLevel = 0;
 
@@ -594,4 +623,39 @@ export function getContainerIdWithLeastBuildersAssigned(room: Room, rm: M.RoomMe
     }
 
     return undefined;
+}
+
+export function getRoomEnergyLevel(rm: M.RoomMemory, room: Room): number
+{
+    // switch (room.controller.level)
+    // {
+    //     case 1: numExtensionToBuild = 0; break; // 300
+    //     case 2: numExtensionToBuild = 5; break; // 550
+    //     case 3: numExtensionToBuild = 10; break; // 800
+    //     case 4: numExtensionToBuild = 20; break; // 1300
+    //     case 5: numExtensionToBuild = 30; break;
+    //     case 6: numExtensionToBuild = 40; break;
+    //     case 7: numExtensionToBuild = 50; break;
+    //     case 8: numExtensionToBuild = 60; break;
+    // }
+
+    if (rm.techLevel <= 4 && room.energyAvailable < 550)
+    {
+        return 1; // less than 550
+    }
+    else if (room.energyCapacityAvailable < 800)
+    {
+        return 2; // 550 + tech level 4
+    }
+    else
+    {
+        return 3; // 800+
+    }
+}
+
+export function removeAssignedExt(targetId: string, rm: M.RoomMemory)
+{
+    //log.info(`was rm.extensionIdsAssigned = ${rm.extensionIdsAssigned.length}`);
+    _.remove(rm.extensionIdsAssigned, (ext: string) => ext === targetId);
+    //log.info(`now rm.extensionIdsAssigned = ${rm.extensionIdsAssigned.length}`);
 }

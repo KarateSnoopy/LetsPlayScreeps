@@ -1,5 +1,5 @@
 import { log } from "./lib/logger/log";
-export const MemoryVersion = 4;
+export const MemoryVersion = 7;
 
 export const enum CreepRoles
 {
@@ -79,6 +79,7 @@ export class RoomMemory
 {
     public roomName: string;
     public techLevel: number;
+    public energyLevel: number;
     public minerTasks: MinerTask[];
     public desiredBuilders: number;
     public energySources: PositionPlusTarget[];
@@ -87,6 +88,7 @@ export class RoomMemory
 
     public spawnText?: string;
     public spawnTextId?: string;
+    public extensionIdsAssigned: string[];
 
     // public ticksSinceUpgrade : number;
     // public desiredWorkHaulers : number;

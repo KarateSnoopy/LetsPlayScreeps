@@ -30,6 +30,14 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
     {
         cm.gathering = true;
         cm.isUpgradingController = false;
+        if (cm.assignedTargetId !== undefined)
+        {
+            const target = Game.getObjectById(cm.assignedTargetId) as Structure;
+            if (target.structureType === STRUCTURE_EXTENSION)
+            {
+                RoomManager.removeAssignedExt(target.id, rm);
+            }
+        }
         cm.assignedTargetId = undefined;
     }
 
@@ -41,7 +49,7 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
     else
     {
         //log.info(`${M.l(cm)}builder is using energy`);
-        useEnergy(room, creep, cm);
+        useEnergy(room, creep, cm, rm);
     }
 
     tryToBuildRoad(rm, creep, room, cm);
@@ -76,6 +84,21 @@ function pickupEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
     }
 }
 
+
+function isAlreadyTaken(structure: Structure, rm: M.RoomMemory): boolean
+{
+    if (structure.structureType === STRUCTURE_EXTENSION)
+    {
+        const isAssigned = _.find(rm.extensionIdsAssigned, (ext: string) => ext === structure.id);
+        if (isAssigned !== undefined)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function isStructureFullOfEnergy(structure: Structure): boolean
 {
     if (structure.structureType === STRUCTURE_EXTENSION)
@@ -99,7 +122,7 @@ function isStructureFullOfEnergy(structure: Structure): boolean
 
 
 
-function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory): void
+function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
 {
     let target: Structure | undefined;
     if (cm.assignedTargetId !== undefined)
@@ -107,6 +130,11 @@ function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory): void
         target = Game.getObjectById(cm.assignedTargetId) as Structure;
         if (isStructureFullOfEnergy(target))
         {
+            if (target.structureType === STRUCTURE_EXTENSION)
+            {
+                //log.info(`RoomManager.removeAssignedExt ${target.id}.  full`);
+                RoomManager.removeAssignedExt(target.id, rm);
+            }
             cm.assignedTargetId = undefined;
             target = undefined;
         }
@@ -120,13 +148,20 @@ function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory): void
             {
                 filter: (structure: Structure) =>
                 {
-                    return !isStructureFullOfEnergy(structure);
+                    return !isStructureFullOfEnergy(structure) && !isAlreadyTaken(structure, rm);
                 }
             });
         if (targets.length > 0)
         {
             target = targets[0];
             cm.assignedTargetId = target.id;
+            if (target.structureType === STRUCTURE_EXTENSION)
+            {
+                //log.info(`${M.l(cm)}Assigned ext ${target.id}`);
+                //_.each(rm.extensionIdsAssigned, (e: string) => log.info(`BeforeRM = ${e}`));
+                rm.extensionIdsAssigned.push(target.id);
+                //_.each(rm.extensionIdsAssigned, (e: string) => log.info(`RM = ${e}`));
+            }
         }
     }
 

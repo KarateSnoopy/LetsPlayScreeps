@@ -173,7 +173,6 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
                         if (structure.structureType === STRUCTURE_EXTENSION)
                         {
                             const structExt: StructureExtension = structure as StructureExtension;
-                            log.info(`found ext`);
                             return structExt.energy < structExt.energyCapacity;
                         }
                         if (structure.structureType === STRUCTURE_SPAWN)
