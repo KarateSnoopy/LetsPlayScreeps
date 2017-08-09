@@ -109,6 +109,8 @@ function scanRoom(room: Room, rm: M.RoomMemory)
     rm.techLevel = getTechLevel(room, rm);
     rm.buildsThisTick = 0;
 
+    buildExtension(rm, room);
+
     log.info(`TL=${rm.techLevel} Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length}`);
 }
 
@@ -172,7 +174,7 @@ function spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles, rm: M
     if (status === OK)
     {
         Memory.uuid = uuid + 1;
-        const creepName: string = spawn.room.name + " - " + M.roleToString(role) + uuid;
+        const creepName: string = spawn.room.name + "-" + M.roleToString(role) + "-" + uuid;
 
         const properties: M.CreepMemory =
             {
@@ -203,6 +205,155 @@ function spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles, rm: M
         }
 
         return status;
+    }
+}
+
+
+function getOptimalExtensionPosition(room: Room, rm: M.RoomMemory, extPositions: RoomPosition[]): RoomPosition | null
+{
+    const sources = room.find(FIND_SOURCES);
+    const firstSpawn = getFirstSpawn(room);
+    if (firstSpawn == null)
+    {
+        return null;
+    }
+
+    const maxRange = 10;
+    const choices: NodeChoice[] = [];
+    log.info(`finding optimal extension pos`);
+    for (let x = firstSpawn.pos.x - maxRange; x < firstSpawn.pos.x + maxRange; x++)
+    {
+        for (let y = firstSpawn.pos.y - maxRange; y < firstSpawn.pos.y + maxRange; y++)
+        {
+            const searchRoomPos: RoomPosition | null = room.getPositionAt(x, y);
+            if (searchRoomPos !== null)
+            {
+                const found: string = searchRoomPos.lookFor(LOOK_TERRAIN) as any;
+                if (found != "wall") //  tslint:disable-line
+                {
+                    let tooClose = false;
+                    for (const extensionPos of extPositions)
+                    {
+                        const rangeToExt = extensionPos.getRangeTo(x, y);
+                        if (rangeToExt <= 1)
+                        {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+
+                    if (tooClose)
+                    {
+                        continue;
+                    }
+
+                    let range = 0;
+                    _.each(sources, (source: Source) =>
+                    {
+                        const rangeToSource = source.pos.getRangeTo(x, y);
+                        if (rangeToSource <= 2)
+                        {
+                            tooClose = true;
+                        }
+                        range += rangeToSource;
+                    });
+                    if (tooClose)
+                    {
+                        continue;
+                    }
+
+                    const rangeToSpawn = firstSpawn.pos.getRangeTo(x, y);
+                    range += rangeToSpawn;
+                    if (rangeToSpawn <= 2)
+                    {
+                        continue;
+                    }
+
+                    //log.info(`Choice is ${x}, ${y} == ${range}`);
+                    const choice: NodeChoice =
+                        {
+                            x, y, dist: range
+                        };
+                    choices.push(choice);
+                }
+            }
+        }
+    }
+
+    const sortedChoices = _.sortBy(choices, (choice: NodeChoice) => choice.dist);
+    if (sortedChoices.length > 0)
+    {
+        log.info(`Best choice is ${sortedChoices[0].x}, ${sortedChoices[0].y} == ${sortedChoices[0].dist}`);
+        const roomPos: RoomPosition | null = room.getPositionAt(sortedChoices[0].x, sortedChoices[0].y);
+        return roomPos;
+    }
+
+
+    //         for (const extension of extensions)
+    //         {
+    //             const range = extension.pos.getRangeTo(creep);
+    //             if (range <= 1)
+    //             {
+    //                 log.info(`${M.l(cm)}Too close to another extension: ${range}`);
+    //                 tooCloseToOther = true;
+    //                 break;
+    //             }
+    //         }
+
+
+    return null;
+}
+
+function buildExtension(rm: M.RoomMemory, room: Room)
+{
+    if (room.controller == null)
+    {
+        return;
+    }
+
+    let numTownersToBuild = 0;
+    let numExtensionToBuild = 0;
+    switch (room.controller.level)
+    {
+        case 2: numTownersToBuild = 0; numExtensionToBuild = 5; break;
+        case 3: numTownersToBuild = 1; numExtensionToBuild = 10; break;
+        case 4: numTownersToBuild = 1; numExtensionToBuild = 20; break;
+        case 5: numTownersToBuild = 2; numExtensionToBuild = 30; break;
+        case 6: numTownersToBuild = 2; numExtensionToBuild = 40; break;
+        case 7: numTownersToBuild = 3; numExtensionToBuild = 50; break;
+        case 8: numTownersToBuild = 8; numExtensionToBuild = 60; break;
+    }
+
+    const extensions = room.find(FIND_STRUCTURES, { filter: (structure: Structure) => (structure.structureType === STRUCTURE_EXTENSION) });
+    const extConstructionSites = room.find(FIND_MY_CONSTRUCTION_SITES, { filter: (structure: ConstructionSite) => (structure.structureType === STRUCTURE_EXTENSION) });
+    const numExtensionsBuilt = extensions.length + extConstructionSites.length;
+    const numExtensionsNeeded = numExtensionToBuild - numExtensionsBuilt;
+    log.info(`numExtensionToBuild=${numExtensionToBuild} numExtensionsBuilt=${numExtensionsBuilt} numExtensionsNeeded=${numExtensionsNeeded}`);
+    const extPos: RoomPosition[] = [];
+    _.each(extensions, (extension: StructureExtension) => extPos.push(extension.pos));
+    _.each(extConstructionSites, (extension: ConstructionSite) => extPos.push(extension.pos));
+
+    //for (let i = 0; i < numExtensionsNeeded; i++)
+    if (numExtensionsNeeded > 0)
+    {
+        const roomPos: RoomPosition | null = getOptimalExtensionPosition(room, rm, extPos);
+        if (roomPos != null)
+        {
+            const errCode = room.createConstructionSite(roomPos, STRUCTURE_EXTENSION);
+            if (errCode === OK)
+            {
+                log.info(`Created extension at ${roomPos}`);
+                return;
+            }
+            else
+            {
+                log.info(`ERROR: created extension at ${roomPos} ${errCode}`);
+            }
+        }
+        else
+        {
+            log.info(`ERROR: coudln't create more extensions`);
+        }
     }
 }
 

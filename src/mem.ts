@@ -1,5 +1,5 @@
 import { log } from "./lib/logger/log";
-export const MemoryVersion = 3;
+export const MemoryVersion = 4;
 
 export const enum CreepRoles
 {
@@ -175,12 +175,7 @@ export function m(): GameMemory
     return Memory as any as GameMemory;
 }
 
-export function l(cmLog: CreepMemory, logLine: string)
+export function l(cmLog: CreepMemory): string
 {
-    log.info(`${cmLog.name} ${roleToString(cmLog.role)}: ${logLine}`);
-}
-
-export function lerr(cmLog: CreepMemory, logLine: string)
-{
-    log.error(`${cmLog.name} ${roleToString(cmLog.role)}: ${logLine}`);
+    return `${cmLog.name}: `;
 }

@@ -7,18 +7,18 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
     const cm = M.cm(creep);
     if (cm.assignedMineTaskId === undefined)
     {
-        M.l(cm, `has no mining task`);
+        log.info(`${M.l(cm)}has no mining task`);
         const unassignedTasks = _.filter(rm.minerTasks, (t: M.MinerTask) => t.assignedMinerName === undefined);
         log.info(`unassignedTask.length: ${unassignedTasks.length}`);
         if (unassignedTasks.length === 0)
         {
-            M.l(cm, `No unassigned miner tasks found`);
+            log.info(`${M.l(cm)}No unassigned miner tasks found`);
         }
         else
         {
             unassignedTasks[0].assignedMinerName = creep.name;
             cm.assignedMineTaskId = unassignedTasks[0].taskId;
-            M.l(cm, `Now assigned miner task ${cm.assignedMineTaskId}`);
+            log.info(`${M.l(cm)}Now assigned miner task ${cm.assignedMineTaskId}`);
         }
     }
     else
@@ -37,16 +37,16 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
         {
             return;
         }
-        //M.l(cm, `got miner task ${minerTask.taskId }`);
+        //log.info(`${M.l(cm)}got miner task ${minerTask.taskId }`);
 
         if (!cm.gathering)
         {
-            //M.l(cm, `is working on dropping off`);
+            //log.info(`${M.l(cm)}is working on dropping off`);
             dropOffEnergy(room, creep, rm, minerTask, cm);
         }
         else
         {
-            //M.l(cm, `is moving to mine`);
+            //log.info(`${M.l(cm)}is moving to mine`);
             harvestEnergy(creep, cm, rm, minerTask);
         }
     }
@@ -54,12 +54,12 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
 
 function harvestEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory, minerTask: M.MinerTask): void
 {
-    //M.l(cm, `is moving to mine`);
+    //log.info(`${M.l(cm)}is moving to mine`);
 
     if (creep.pos.x !== minerTask.minerPosition.x ||
         creep.pos.y !== minerTask.minerPosition.y)
     {
-        //M.l(cm, `is not in position at ${minerTask.minerPosition.x }, ${minerTask.minerPosition.y }`);
+        //log.info(`${M.l(cm)}is not in position at ${minerTask.minerPosition.x }, ${minerTask.minerPosition.y }`);
         const pos = creep.room.getPositionAt(minerTask.minerPosition.x, minerTask.minerPosition.y);
         if (pos !== null)
         {
@@ -67,24 +67,24 @@ function harvestEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory, minerT
         }
         else
         {
-            M.lerr(cm, `Can't find ${pos}`);
+            log.error(`${M.l(cm)}Can't find ${pos}`);
         }
     }
     else
     {
-        //M.l(cm, `is in position at ${minerTask.minerPosition.x}, ${minerTask.minerPosition.y}`);
+        //log.info(`${M.l(cm)}is in position at ${minerTask.minerPosition.x}, ${minerTask.minerPosition.y}`);
         const source = Game.getObjectById(minerTask.minerPosition.targetId) as Source;
         const errCode = creep.harvest(source);
         if (errCode !== OK && errCode !== ERR_NOT_IN_RANGE && errCode !== ERR_NOT_ENOUGH_RESOURCES)
         {
-            M.lerr(cm, `Harvest error ${errCode}`);
+            log.error(`${M.l(cm)}Harvest error ${errCode}`);
         }
     }
 }
 
 function buildIfCan(room: Room, creep: Creep, rm: M.RoomMemory, cm: M.CreepMemory): boolean
 {
-    M.l(cm, `buildIfCan ${room.name}, ${creep.name}`);
+    log.info(`${M.l(cm)}buildIfCan ${room.name}, ${creep.name}`);
 
     // Find container construction sites
     const targets = room.find(FIND_CONSTRUCTION_SITES,
@@ -103,7 +103,7 @@ function buildIfCan(room: Room, creep: Creep, rm: M.RoomMemory, cm: M.CreepMemor
             const moveCode = creep.moveTo(targets[0], { visualizePathStyle: { stroke: "#ffffff" } });
             if (moveCode !== OK && moveCode !== ERR_TIRED)
             {
-                M.lerr(cm, `move and got ${moveCode}`);
+                log.error(`${M.l(cm)}move and got ${moveCode}`);
             }
         }
         return true;
@@ -113,10 +113,10 @@ function buildIfCan(room: Room, creep: Creep, rm: M.RoomMemory, cm: M.CreepMemor
         // Do I have all construction sites for all the containers?
         if (RoomManager.containers.length !== rm.containerPositions.length)
         {
-            M.l(cm, `RoomManager.containers.length=${RoomManager.containers.length}. rm.containerPositions.length=${rm.containerPositions.length}`);
+            log.info(`${M.l(cm)}RoomManager.containers.length=${RoomManager.containers.length}. rm.containerPositions.length=${rm.containerPositions.length}`);
             _.each(rm.containerPositions, (containerPos: M.PositionPlusTarget) =>
             {
-                M.l(cm, `Creating container at ${containerPos.x}, ${containerPos.y}`);
+                log.info(`${M.l(cm)}Creating container at ${containerPos.x}, ${containerPos.y}`);
                 const roomPos: RoomPosition | null = room.getPositionAt(containerPos.x, containerPos.y);
                 if (roomPos !== null)
                 {
@@ -136,11 +136,11 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
     if (minerTask.sourceContainer === undefined ||
         rm.techLevel < 3)
     {
-        M.l(cm, `no source container or low tech`);
+        log.info(`${M.l(cm)}no source container or low tech`);
         if (RoomManager.containers.length === rm.containerPositions.length &&
             rm.techLevel >= 3)
         {
-            M.l(cm, `room has containers and tech 3+`);
+            log.info(`${M.l(cm)}room has containers and tech 3+`);
             const foundContainerPos = _.find(rm.containerPositions, (containerPos: M.PositionPlusTarget) => containerPos.targetId === minerTask.minerPosition.targetId);
             if (foundContainerPos !== null)
             {
@@ -151,7 +151,7 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
                     if (targets.length > 0)
                     {
                         target = targets[0];
-                        M.l(cm, `Found matching containerPos ${target.id}`);
+                        log.info(`${M.l(cm)}Found matching containerPos ${target.id}`);
                         minerTask.sourceContainer =
                             {
                                 targetId: target.id,
@@ -165,7 +165,7 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
 
         if (target === undefined)
         {
-            M.l(cm, `looking for non-container target`);
+            log.info(`${M.l(cm)}looking for non-container target`);
             const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
                 {
                     filter: (structure: Structure) =>
@@ -173,6 +173,7 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
                         if (structure.structureType === STRUCTURE_EXTENSION)
                         {
                             const structExt: StructureExtension = structure as StructureExtension;
+                            log.info(`found ext`);
                             return structExt.energy < structExt.energyCapacity;
                         }
                         if (structure.structureType === STRUCTURE_SPAWN)
@@ -199,15 +200,15 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
     }
     else
     {
-        //M.l(cm, `container = ${minerTask.sourceContainer.targetId}`);
+        //log.info(`${M.l(cm)}container = ${minerTask.sourceContainer.targetId}`);
         target = Game.getObjectById(minerTask.sourceContainer.targetId) as Structure;
-        //M.l(cm, `target = ${target}`);
+        //log.info(`${M.l(cm)}target = ${target}`);
         if (target === null)
         {
             minerTask.sourceContainer = undefined;
         }
         //creep.say(`unloading`);
-        //M.l(cm, `Going to ${target}`);
+        //log.info(`${M.l(cm)}Going to ${target}`);
     }
 
     if (target !== undefined)
@@ -236,7 +237,7 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
                     const moveCode = creep.moveTo(room.controller, { visualizePathStyle: { stroke: "#ffffff" } });
                     if (moveCode !== OK && moveCode !== ERR_TIRED)
                     {
-                        M.lerr(cm, `move and got ${moveCode}`);
+                        log.error(`${M.l(cm)}move and got ${moveCode}`);
                     }
                 }
             }
