@@ -59,7 +59,15 @@ export function run(room: Room, rm: M.RoomMemory): void
         }
         else
         {
-            creepMem.role = M.CreepRoles.ROLE_MINER;
+            creepMem.name = creep.name;
+            if (creep.name.search("ROLE_MINER") >= 0)
+            {
+                creepMem.role = M.CreepRoles.ROLE_MINER;
+            }
+            else if (creep.name.search("ROLE_BUILDER") >= 0)
+            {
+                creepMem.role = M.CreepRoles.ROLE_BUILDER;
+            }
         }
     });
 }
@@ -173,6 +181,7 @@ function spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles, rm: M
                 gathering: true,
                 role,
                 roleString: M.roleToString(role),
+                isUpgradingController: false
             };
 
         log.info("Started creating new creep: " + creepName);
@@ -204,7 +213,7 @@ export function initRoomMemory(room: Room, roomName: string)
     rm.minerTasks = [];
     rm.energySources = [];
     rm.containerPositions = [];
-    rm.desiredBuilders = 2;
+    rm.desiredBuilders = 6;
     rm.techLevel = 0;
 
     let taskIdNum = 0;

@@ -1,5 +1,5 @@
 import { log } from "./lib/logger/log";
-export const MemoryVersion = 8;
+export const MemoryVersion = 3;
 
 export const enum CreepRoles
 {
@@ -151,6 +151,8 @@ export interface CreepMemory
     gathering: boolean;
     assignedMineTaskId?: number;
     assignedContainerId?: string;
+    assignedTargetId?: string;
+    isUpgradingController: boolean;
 
     // roomName ?: string;
     // path ?: CreepPath;

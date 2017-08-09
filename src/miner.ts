@@ -199,7 +199,13 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
     }
     else
     {
+        //M.l(cm, `container = ${minerTask.sourceContainer.targetId}`);
         target = Game.getObjectById(minerTask.sourceContainer.targetId) as Structure;
+        //M.l(cm, `target = ${target}`);
+        if (target === null)
+        {
+            minerTask.sourceContainer = undefined;
+        }
         //creep.say(`unloading`);
         //M.l(cm, `Going to ${target}`);
     }

@@ -29,6 +29,8 @@ export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
     if (!cm.gathering && creep.carry.energy === 0)
     {
         cm.gathering = true;
+        cm.isUpgradingController = false;
+        cm.assignedTargetId = undefined;
     }
 
     if (cm.gathering)
@@ -72,45 +74,77 @@ function pickupEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
     }
 }
 
+function isStructureFullOfEnergy(structure: Structure): boolean
+{
+    if (structure.structureType === STRUCTURE_EXTENSION)
+    {
+        const structExt: StructureExtension = structure as StructureExtension;
+        return structExt.energy >= structExt.energyCapacity;
+    }
+    if (structure.structureType === STRUCTURE_SPAWN)
+    {
+        const structSpawn: StructureSpawn = structure as StructureSpawn;
+        return structSpawn.energy >= structSpawn.energyCapacity;
+    }
+    if (structure.structureType === STRUCTURE_TOWER)
+    {
+        const structTower: StructureTower = structure as StructureTower;
+        return structTower.energy >= structTower.energyCapacity;
+    }
+
+    return true;
+}
+
+
+
 function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory): void
 {
-    const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
+    let target: Structure | undefined;
+    if (cm.assignedTargetId !== undefined)
+    {
+        target = Game.getObjectById(cm.assignedTargetId) as Structure;
+        if (isStructureFullOfEnergy(target))
         {
-            filter: (structure: Structure) =>
+            cm.assignedTargetId = undefined;
+            target = undefined;
+        }
+    }
+
+    M.l(cm, `cm.assignedTargetId=${cm.assignedTargetId} cm.isUpgradingController=${cm.isUpgradingController}`);
+    if (cm.assignedTargetId === undefined &&
+        !cm.isUpgradingController)
+    {
+        const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
             {
-                if (structure.structureType === STRUCTURE_EXTENSION)
+                filter: (structure: Structure) =>
                 {
-                    const structExt: StructureExtension = structure as StructureExtension;
-                    return structExt.energy < structExt.energyCapacity;
+                    return !isStructureFullOfEnergy(structure);
                 }
-                if (structure.structureType === STRUCTURE_SPAWN)
-                {
-                    const structSpawn: StructureSpawn = structure as StructureSpawn;
-                    return structSpawn.energy < structSpawn.energyCapacity;
-                }
-                if (structure.structureType === STRUCTURE_TOWER)
-                {
-                    const structTower: StructureTower = structure as StructureTower;
-                    return structTower.energy < structTower.energyCapacity;
-                }
+            });
+        if (targets.length > 0)
+        {
+            target = targets[0];
+            cm.assignedTargetId = target.id;
+        }
+        else
+        {
+            cm.isUpgradingController = true;
+        }
+    }
 
-                return false;
-            }
-        });
-
-    if (targets.length > 0)
+    if (target !== undefined)
     {
         //creep.say(`transfering`);
-        if (creep.transfer(targets[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+        if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         {
-            creep.moveTo(targets[0], { visualizePathStyle: { stroke: "#ffffff" } });
+            creep.moveTo(target, { visualizePathStyle: { stroke: "#ffffff" } });
         }
     }
     else
     {
         if (room.controller !== undefined)
         {
-            creep.say(`upgrading`);
+            //creep.say(`upgrading`);
             const status = creep.upgradeController(room.controller);
             if (status === ERR_NOT_IN_RANGE)
             {
