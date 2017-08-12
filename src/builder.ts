@@ -182,13 +182,15 @@ function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory
     {
         if (room.controller !== undefined && room.controller.ticksToDowngrade > 1000)
         {
-            if (repairIfCan(room, creep, cm))
+            if (repairIfCan(room, creep, cm, rm))
             {
+                //creep.say(`Repairing`);
                 return;
             }
 
             if (buildIfCan(room, creep, cm))
             {
+                //creep.say(`Building`);
                 return;
             }
         }
@@ -210,13 +212,44 @@ function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory
     }
 }
 
-function repairIfCan(room: Room, creep: Creep, cm: M.CreepMemory): boolean
+function repairIfCan(room: Room, creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): boolean
 {
     let repairTarget: Structure | undefined;
-    if (RoomManager.notRoadNeedingRepair.length > 0)
+    if (cm.repairTargetId !== undefined)
     {
-        repairTarget = RoomManager.notRoadNeedingRepair[0];
+        repairTarget = Game.getObjectById(cm.repairTargetId) as Structure;
+        if (repairTarget === null)
+        {
+            cm.repairTargetId = undefined;
+            return false;
+        }
+        else if (repairTarget.structureType === STRUCTURE_RAMPART)
+        {
+            if (repairTarget.hits > rm.desiredWallHitPoints)
+            {
+                cm.repairTargetId = undefined;
+                return false;
+            }
+        }
+        else
+        {
+            cm.repairTargetId = undefined;
+            return false;
+        }
     }
+    else
+    {
+        if (RoomManager.notRoadNeedingRepair.length > 0)
+        {
+            repairTarget = RoomManager.notRoadNeedingRepair[0];
+            if (repairTarget.structureType === STRUCTURE_RAMPART &&
+                repairTarget.hits < rm.desiredWallHitPoints)
+            {
+                cm.repairTargetId = repairTarget.id;
+            }
+        }
+    }
+
 
     if (repairTarget === undefined)
     {

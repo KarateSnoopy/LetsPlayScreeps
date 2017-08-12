@@ -134,9 +134,10 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
     let target: Structure | undefined;
 
     if (minerTask.sourceContainer === undefined ||
-        rm.techLevel < 3)
+        rm.techLevel < 3 ||
+        RoomManager.builders.length === 0)
     {
-        log.info(`${M.l(cm)}no source container or low tech`);
+        //log.info(`${M.l(cm)}no source container or low tech`);
         if (RoomManager.containers.length === rm.containerPositions.length &&
             rm.techLevel >= 3)
         {
@@ -165,7 +166,7 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
 
         if (target === undefined)
         {
-            log.info(`${M.l(cm)}looking for non-container target`);
+            //log.info(`${M.l(cm)}looking for non-container target`);
             const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
                 {
                     filter: (structure: Structure) =>
@@ -193,7 +194,7 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
             if (targets.length > 0)
             {
                 target = targets[0];
-                creep.say(`custom`);
+                //creep.say(`Hauling`);
             }
         }
     }

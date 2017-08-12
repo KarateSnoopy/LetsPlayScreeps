@@ -118,12 +118,33 @@ function scanRoom(room: Room, rm: M.RoomMemory)
     {
         if (structure.structureType !== STRUCTURE_ROAD)
         {
-            const hitsToRepair = structure.hitsMax - structure.hits;
-            if (hitsToRepair > structure.hitsMax * 0.25)
+            if (structure.structureType === STRUCTURE_WALL)
             {
-                return true;
+                const hitsToRepair = rm.desiredWallHitPoints - structure.hits;
+                //if (hitsToRepair > rm.desiredWallHitPoints * 0.25)
+                if (hitsToRepair > 0)
+                {
+                    return true;
+                }
+            }
+            else if (structure.structureType === STRUCTURE_RAMPART)
+            {
+                const hitsToRepair = rm.desiredWallHitPoints - structure.hits;
+                if (hitsToRepair > rm.desiredWallHitPoints * 0.25)
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                const hitsToRepair = structure.hitsMax - structure.hits;
+                if (hitsToRepair > structure.hitsMax * 0.25)
+                {
+                    return true;
+                }
             }
         }
+
         return false;
     }) as StructureExtension[];
     constructionSites = room.find<ConstructionSite>(FIND_MY_CONSTRUCTION_SITES);
@@ -156,7 +177,12 @@ function scanRoom(room: Room, rm: M.RoomMemory)
         buildExtension(rm, room, numExtensionToBuild);
     }
 
-    log.info(`TL=${rm.techLevel} Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length} Ext=${extensions.length}/${numExtensionToBuild} R:${notRoadNeedingRepair.length}`);
+    if (Game.time % 50 === 0)
+    {
+        rm.extensionIdsAssigned = [];
+    }
+
+    log.info(`TL=${rm.techLevel} Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length} Ext=${extensions.length}/${numExtensionToBuild} R:${notRoadNeedingRepair.length} E:${rm.extensionIdsAssigned.length}`);
 }
 
 function buildMissingCreeps(room: Room, rm: M.RoomMemory)
@@ -406,6 +432,7 @@ export function initRoomMemory(room: Room, roomName: string)
     rm.extensionIdsAssigned = [];
     rm.desiredBuilders = 6;
     rm.techLevel = 0;
+    rm.desiredWallHitPoints = 100000;
 
     let taskIdNum = 0;
 

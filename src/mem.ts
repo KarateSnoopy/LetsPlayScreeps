@@ -85,6 +85,7 @@ export class RoomMemory
     public energySources: PositionPlusTarget[];
     public containerPositions: PositionPlusTarget[];
     public buildsThisTick: number;
+    public desiredWallHitPoints: number;
 
     public spawnText?: string;
     public spawnTextId?: string;
@@ -155,6 +156,7 @@ export interface CreepMemory
     assignedContainerId?: string;
     assignedTargetId?: string;
     isUpgradingController: boolean;
+    repairTargetId?: string;
 
     // roomName ?: string;
     // path ?: CreepPath;
