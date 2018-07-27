@@ -4,18 +4,11 @@
   ],
   "rules": {
     "forin": false,
-    "one-line": false,
-    "ordered-imports": false,
-    "comment-format": false,
-    "object-literal-sort-keys": false,
-    "max-line-length": false,
-    "no-consecutive-blank-lines": false,
-    "interface-name": [false],
+    "interface-name": [true, "never-prefix"],
+    "member-ordering": [false],
     "no-console": [false],
-    "trailing-comma": [
-      true,
-      "never"
-    ],
+    "no-namespace": [true, "allow-declarations"],
+    "trailing-comma": [true, {"multiline": "never", "singleline": "never"}],
     "variable-name": [
       true,
       "ban-keywords",

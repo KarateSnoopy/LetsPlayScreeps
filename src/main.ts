@@ -1,9 +1,9 @@
-import * as Profiler from "lib/Profiler";
+//import * as Profiler from "lib/Profiler";
 import { log } from "./lib/logger/log";
 import * as RoomManager from "./roomManager";
 import * as M from "./mem";
 
-global.Profiler = Profiler.init();
+//global.Profiler = Profiler.init();
 
 function clearStaleCreepMemory()
 {
@@ -75,4 +75,11 @@ function mainLoop()
     clearStaleCreepMemory();
 }
 
-export const loop = mainLoop;
+import { ErrorMapper } from "ErrorMapper";
+
+// When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
+// This utility uses source maps to get the line numbers and file names of the original, TS source code
+export const loop = ErrorMapper.wrapLoop(() =>
+{
+    mainLoop();
+});

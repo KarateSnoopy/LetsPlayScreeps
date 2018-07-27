@@ -77,19 +77,19 @@ export interface MinerTask
 
 export class RoomMemory
 {
-    public roomName: string;
-    public techLevel: number;
-    public energyLevel: number;
-    public minerTasks: MinerTask[];
-    public desiredBuilders: number;
-    public energySources: PositionPlusTarget[];
-    public containerPositions: PositionPlusTarget[];
-    public buildsThisTick: number;
-    public desiredWallHitPoints: number;
+    public roomName!: string;
+    public techLevel!: number;
+    public energyLevel!: number;
+    public minerTasks!: MinerTask[];
+    public desiredBuilders!: number;
+    public energySources!: PositionPlusTarget[];
+    public containerPositions!: PositionPlusTarget[];
+    public buildsThisTick!: number;
+    public desiredWallHitPoints!: number;
 
     public spawnText?: string;
     public spawnTextId?: string;
-    public extensionIdsAssigned: string[];
+    public extensionIdsAssigned!: string[];
 
     // public ticksSinceUpgrade : number;
     // public desiredWorkHaulers : number;
@@ -122,7 +122,7 @@ export interface GameMemory
     memVersion: number | undefined;
     uuid: number;
     log: any;
-    Profiler: Profiler;
+    //Profiler: Profiler;
 
     creeps:
     {

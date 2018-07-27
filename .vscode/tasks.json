@@ -4,16 +4,20 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "taskName": "Build Screeps",
+            "label": "compile",
             "type": "shell",
+            "command": "compile",
             "windows": {
-                "command": "C:\\git\\Screeps\\LetsPlayScreeps\\go1.cmd"
+                "command": "F:\\git\\screeps\\LetsPlayScreeps\\compile.cmd"
             },
-            "group": "test",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
-            }
+            }	    
         }
     ]
 }

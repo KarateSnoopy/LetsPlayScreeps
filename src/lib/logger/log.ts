@@ -1,3 +1,4 @@
+import { SourceMapConsumer } from "source-map/source-map";
 import * as Config from "../../config";
 import { LogLevels } from "./logLevels";
 
@@ -75,18 +76,17 @@ function time(): string
 
 export class Log
 {
-    public static sourceMap: any;
+    static sourceMap?: SourceMapConsumer;
 
     public static loadSourceMap()
     {
         try
         {
             // tslint:disable-next-line
-            var SourceMapConsumer = require("source-map").SourceMapConsumer;
             const map = require("main.js.map");
             if (map)
             {
-                Log.sourceMap = new SourceMapConsumer(map);
+                this.sourceMap = new SourceMapConsumer(require("main.js.map"));
             }
         } catch (err)
         {

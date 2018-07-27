@@ -143,12 +143,12 @@ function dropOffEnergy(room: Room, creep: Creep, rm: M.RoomMemory, minerTask: M.
         {
             log.info(`${M.l(cm)}room has containers and tech 3+`);
             const foundContainerPos = _.find(rm.containerPositions, (containerPos: M.PositionPlusTarget) => containerPos.targetId === minerTask.minerPosition.targetId);
-            if (foundContainerPos !== null)
+            if (foundContainerPos !== null && foundContainerPos != undefined)
             {
                 const roomPos: RoomPosition | null = room.getPositionAt(foundContainerPos.x, foundContainerPos.y);
                 if (roomPos !== null)
                 {
-                    const targets = roomPos.lookFor<Structure>("structure") as Structure[];
+                    const targets = roomPos.lookFor<LOOK_STRUCTURES>(LOOK_STRUCTURES) as Structure[];
                     if (targets.length > 0)
                     {
                         target = targets[0];

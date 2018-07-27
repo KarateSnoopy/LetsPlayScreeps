@@ -2,7 +2,7 @@ import * as Config from "config";
 import * as miner from "./miner";
 import * as builder from "./builder";
 import { log } from "./lib/logger/log";
-import { profileRecord } from "./lib/Profiler";
+//import { profileRecord } from "./lib/Profiler";
 import * as M from "./mem";
 
 export let creeps: Creep[];
@@ -19,9 +19,9 @@ export function run(room: Room, rm: M.RoomMemory): void
 {
     if (Game.time % 1 === 0)
     {
-        profileRecord("scanRoom", true);
+        //profileRecord("scanRoom", true);
         scanRoom(room, rm);
-        profileRecord("scanRoom", false);
+        //profileRecord("scanRoom", false);
     }
 
     if (rm.spawnText !== undefined && rm.spawnTextId !== undefined)
@@ -40,24 +40,24 @@ export function run(room: Room, rm: M.RoomMemory): void
         }
     }
 
-    profileRecord("buildMissingCreeps", true);
+    //profileRecord("buildMissingCreeps", true);
     buildMissingCreeps(room, rm);
-    profileRecord("buildMissingCreeps", false);
+    //profileRecord("buildMissingCreeps", false);
 
     _.each(creeps, (creep: Creep) =>
     {
         const creepMem = M.cm(creep);
         if (creepMem.role === M.CreepRoles.ROLE_MINER)
         {
-            profileRecord("miner.run", true);
+            //profileRecord("miner.run", true);
             miner.run(room, creep, rm);
-            profileRecord("miner.run", false);
+            //profileRecord("miner.run", false);
         }
         else if (creepMem.role === M.CreepRoles.ROLE_BUILDER)
         {
-            profileRecord("builder.run", true);
+            //profileRecord("builder.run", true);
             builder.run(room, creep, rm);
-            profileRecord("builder.run", false);
+            //profileRecord("builder.run", false);
         }
         else
         {
@@ -107,7 +107,7 @@ function getTechLevel(room: Room, rm: M.RoomMemory, numExtensionToBuild: number)
 
 function scanRoom(room: Room, rm: M.RoomMemory)
 {
-    creeps = room.find<Creep>(FIND_MY_CREEPS);
+    creeps = room.find<FIND_MY_CREEPS>(FIND_MY_CREEPS);
     creepCount = _.size(creeps);
     miners = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_MINER);
     builders = _.filter(creeps, (creep) => M.cm(creep).role === M.CreepRoles.ROLE_BUILDER);
@@ -147,7 +147,7 @@ function scanRoom(room: Room, rm: M.RoomMemory)
 
         return false;
     }) as StructureExtension[];
-    constructionSites = room.find<ConstructionSite>(FIND_MY_CONSTRUCTION_SITES);
+    constructionSites = room.find<FIND_MY_CONSTRUCTION_SITES>(FIND_MY_CONSTRUCTION_SITES);
 
     constructionSites = _.sortBy(constructionSites, (constructionSite: ConstructionSite) => constructionSite.id);
     notRoadNeedingRepair = _.sortBy(notRoadNeedingRepair, (struct: Structure) => struct.id);
@@ -187,10 +187,10 @@ function scanRoom(room: Room, rm: M.RoomMemory)
 
 function buildMissingCreeps(room: Room, rm: M.RoomMemory)
 {
-    let bodyParts: string[];
+    let bodyParts: BodyPartConstant[];
 
-    const inactiveSpawns: Spawn[] = room.find<Spawn>(FIND_MY_SPAWNS, {
-        filter: (spawn: Spawn) =>
+    const inactiveSpawns: StructureSpawn[] = room.find<FIND_MY_SPAWNS>(FIND_MY_SPAWNS, {
+        filter: (spawn: StructureSpawn) =>
         {
             return spawn.spawning === null;
         },
@@ -246,10 +246,10 @@ function buildMissingCreeps(room: Room, rm: M.RoomMemory)
     }
 }
 
-function tryToSpawnCreep(inactiveSpawns: Spawn[], bodyParts: string[], role: M.CreepRoles, rm: M.RoomMemory)
+function tryToSpawnCreep(inactiveSpawns: StructureSpawn[], bodyParts: BodyPartConstant[], role: M.CreepRoles, rm: M.RoomMemory)
 {
     let spawned: boolean = false;
-    _.each(inactiveSpawns, (spawn: Spawn) =>
+    _.each(inactiveSpawns, (spawn: StructureSpawn) =>
     {
         if (!spawned)
         {
@@ -262,7 +262,7 @@ function tryToSpawnCreep(inactiveSpawns: Spawn[], bodyParts: string[], role: M.C
     });
 }
 
-function spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles, rm: M.RoomMemory): number
+function spawnCreep(spawn: StructureSpawn, bodyParts: BodyPartConstant[], role: M.CreepRoles, rm: M.RoomMemory): number
 {
     const uuid: number = Memory.uuid;
     let status: number | string = spawn.canCreateCreep(bodyParts, undefined);
@@ -274,14 +274,14 @@ function spawnCreep(spawn: Spawn, bodyParts: string[], role: M.CreepRoles, rm: M
         const creepName: string = spawn.room.name + "-" + M.roleToString(role) + "-" + uuid;
 
         const properties: M.CreepMemory =
-            {
-                name: creepName,
-                log: false,
-                gathering: true,
-                role,
-                roleString: M.roleToString(role),
-                isUpgradingController: false
-            };
+        {
+            name: creepName,
+            log: false,
+            gathering: true,
+            role,
+            roleString: M.roleToString(role),
+            isUpgradingController: false
+        };
 
         log.info("Started creating new creep: " + creepName);
         if (Config.ENABLE_DEBUG_MODE)
@@ -368,9 +368,9 @@ function getOptimalExtensionPosition(room: Room, rm: M.RoomMemory, extPositions:
 
                     //log.info(`Choice is ${x}, ${y} == ${range}`);
                     const choice: NodeChoice =
-                        {
-                            x, y, dist: range
-                        };
+                    {
+                        x, y, dist: range
+                    };
                     choices.push(choice);
                 }
             }
@@ -442,11 +442,11 @@ export function initRoomMemory(room: Room, roomName: string)
         const source: Source = sources[sourceName] as Source;
 
         const sourcePos: M.PositionPlusTarget =
-            {
-                targetId: source.id,
-                x: source.pos.x,
-                y: source.pos.y
-            };
+        {
+            targetId: source.id,
+            x: source.pos.x,
+            y: source.pos.y
+        };
         rm.energySources.push(sourcePos);
 
         const positions = [
@@ -473,18 +473,18 @@ export function initRoomMemory(room: Room, roomName: string)
                 {
                     log.info("pos " + pos[0] + "," + pos[1] + "=" + found);
                     const minerPos: M.PositionPlusTarget =
-                        {
-                            targetId: source.id,
-                            x: pos[0],
-                            y: pos[1]
-                        };
+                    {
+                        targetId: source.id,
+                        x: pos[0],
+                        y: pos[1]
+                    };
                     taskIdNum++;
                     const minerTask: M.MinerTask =
-                        {
-                            minerPosition: minerPos,
-                            taskId: taskIdNum,
-                            sourceContainer: undefined
-                        };
+                    {
+                        minerPosition: minerPos,
+                        taskId: taskIdNum,
+                        sourceContainer: undefined
+                    };
 
                     rm.minerTasks.push(minerTask);
                     minerTasksForSource.push(minerTask);
@@ -509,7 +509,7 @@ interface NodeChoice
 
 export function getFirstSpawn(room: Room): StructureSpawn | null
 {
-    const spawns: Spawn[] = room.find<Spawn>(FIND_MY_SPAWNS);
+    const spawns: StructureSpawn[] = room.find<FIND_MY_SPAWNS>(FIND_MY_SPAWNS);
     if (spawns.length === 0)
     {
         return null;
@@ -565,9 +565,9 @@ function getOptimalContainerPosition(minerTasksForSource: M.MinerTask[], sourceP
                         log.info(`${x}, ${y} == ${dist} total dist including to spawn`);
 
                         const choice: NodeChoice =
-                            {
-                                x, y, dist
-                            };
+                        {
+                            x, y, dist
+                        };
                         choices.push(choice);
                     }
                 }
@@ -580,11 +580,11 @@ function getOptimalContainerPosition(minerTasksForSource: M.MinerTask[], sourceP
     {
         log.info(`Best choice is ${sortedChoices[0].x}, ${sortedChoices[0].y} == ${sortedChoices[0].dist}`);
         const containerPos: M.PositionPlusTarget =
-            {
-                targetId: sourcePos.targetId,
-                x: sortedChoices[0].x,
-                y: sortedChoices[0].y
-            };
+        {
+            targetId: sourcePos.targetId,
+            x: sortedChoices[0].x,
+            y: sortedChoices[0].y
+        };
 
         return containerPos;
     }
@@ -635,9 +635,9 @@ export function getContainerIdWithLeastBuildersAssigned(room: Room, rm: M.RoomMe
         });
 
         const choice: NodeContainerIdChoice =
-            {
-                id: container.id, count
-            };
+        {
+            id: container.id, count
+        };
         log.info(`Container ${container.id} = ${count}`);
         choices.push(choice);
     });
