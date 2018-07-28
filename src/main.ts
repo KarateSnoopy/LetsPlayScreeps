@@ -1,9 +1,9 @@
-//import * as Profiler from "lib/Profiler";
+import * as Profiler from "lib/Profiler";
 import { log } from "./lib/logger/log";
 import * as RoomManager from "./roomManager";
 import * as M from "./mem";
 
-//global.Profiler = Profiler.init();
+global.Profiler = Profiler.init();
 
 function clearStaleCreepMemory()
 {

@@ -2,7 +2,7 @@ import * as Config from "config";
 import * as miner from "./miner";
 import * as builder from "./builder";
 import { log } from "./lib/logger/log";
-//import { profileRecord } from "./lib/Profiler";
+import { profileRecord } from "./lib/Profiler";
 import * as M from "./mem";
 
 export let creeps: Creep[];
@@ -17,13 +17,40 @@ export let notRoadNeedingRepair: Structure[] = [];
 
 export function run(room: Room, rm: M.RoomMemory): void
 {
-    if (Game.time % 1 === 0)
-    {
-        //profileRecord("scanRoom", true);
-        scanRoom(room, rm);
-        //profileRecord("scanRoom", false);
-    }
+    profileRecord("scanRoom", true);
+    scanRoom(room, rm);
+    profileRecord("scanRoom", false);
 
+    showSpawnTextIfSpawn(room, rm);
+
+    profileRecord("buildMissingCreeps", true);
+    buildMissingCreeps(room, rm);
+    profileRecord("buildMissingCreeps", false);
+
+    _.each(creeps, (creep: Creep) =>
+    {
+        const creepMem = M.cm(creep);
+        if (creepMem.role === M.CreepRoles.ROLE_MINER)
+        {
+            profileRecord("miner.run", true);
+            miner.run(room, creep, rm);
+            profileRecord("miner.run", false);
+        }
+        else if (creepMem.role === M.CreepRoles.ROLE_BUILDER)
+        {
+            profileRecord("builder.run", true);
+            builder.run(room, creep, rm);
+            profileRecord("builder.run", false);
+        }
+        else
+        {
+            assignRoleToCreep(creep, creepMem);
+        }
+    });
+}
+
+function showSpawnTextIfSpawn(room: Room, rm: M.RoomMemory): void
+{
     if (rm.spawnText !== undefined && rm.spawnTextId !== undefined)
     {
         const spawn = Game.getObjectById(rm.spawnTextId) as StructureSpawn;
@@ -39,39 +66,19 @@ export function run(room: Room, rm: M.RoomMemory): void
             rm.spawnText = undefined;
         }
     }
+}
 
-    //profileRecord("buildMissingCreeps", true);
-    buildMissingCreeps(room, rm);
-    //profileRecord("buildMissingCreeps", false);
-
-    _.each(creeps, (creep: Creep) =>
+function assignRoleToCreep(creep: Creep, creepMem: M.CreepMemory): void
+{
+    creepMem.name = creep.name;
+    if (creep.name.search("ROLE_MINER") >= 0)
     {
-        const creepMem = M.cm(creep);
-        if (creepMem.role === M.CreepRoles.ROLE_MINER)
-        {
-            //profileRecord("miner.run", true);
-            miner.run(room, creep, rm);
-            //profileRecord("miner.run", false);
-        }
-        else if (creepMem.role === M.CreepRoles.ROLE_BUILDER)
-        {
-            //profileRecord("builder.run", true);
-            builder.run(room, creep, rm);
-            //profileRecord("builder.run", false);
-        }
-        else
-        {
-            creepMem.name = creep.name;
-            if (creep.name.search("ROLE_MINER") >= 0)
-            {
-                creepMem.role = M.CreepRoles.ROLE_MINER;
-            }
-            else if (creep.name.search("ROLE_BUILDER") >= 0)
-            {
-                creepMem.role = M.CreepRoles.ROLE_BUILDER;
-            }
-        }
-    });
+        creepMem.role = M.CreepRoles.ROLE_MINER;
+    }
+    else if (creep.name.search("ROLE_BUILDER") >= 0)
+    {
+        creepMem.role = M.CreepRoles.ROLE_BUILDER;
+    }
 }
 
 function getTechLevel(room: Room, rm: M.RoomMemory, numExtensionToBuild: number): number
@@ -114,6 +121,74 @@ function scanRoom(room: Room, rm: M.RoomMemory)
     structures = room.find<StructureContainer>(FIND_STRUCTURES);
     containers = _.filter(structures, (structure) => structure.structureType === STRUCTURE_CONTAINER) as StructureContainer[];
     extensions = _.filter(structures, (structure) => structure.structureType === STRUCTURE_EXTENSION) as StructureExtension[];
+    constructionSites = room.find<FIND_MY_CONSTRUCTION_SITES>(FIND_MY_CONSTRUCTION_SITES);
+    constructionSites = _.sortBy(constructionSites, (constructionSite: ConstructionSite) => constructionSite.id);
+
+    findNonRoadNeedingRepair(room, rm);
+
+    let numTowersToBuild = getNumTowersToBuild(room);
+    let numExtensionToBuild = getNumExtensionsToBuild(room);
+
+    rm.techLevel = getTechLevel(room, rm, numExtensionToBuild);
+    rm.energyLevel = getRoomEnergyLevel(rm, room);
+    rm.buildsThisTick = 0;
+
+    if (Game.time % 10 === 0)
+    {
+        buildExtension(rm, room, numExtensionToBuild);
+    }
+
+    if (Game.time % 50 === 0)
+    {
+        rm.extensionIdsAssigned = [];
+    }
+
+    if (Game.time % 100 === 0)
+    {
+        log.info(`TL=${rm.techLevel} Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length} Ext=${extensions.length}/${numExtensionToBuild} R:${notRoadNeedingRepair.length} E:${rm.extensionIdsAssigned.length}`);
+    }
+}
+
+function getNumTowersToBuild(room: Room): number
+{
+    if (room.controller != null)
+    {
+        switch (room.controller.level)
+        {
+            case 2: return 0;
+            case 3: return 1;
+            case 4: return 1;
+            case 5: return 2;
+            case 6: return 2;
+            case 7: return 3;
+            case 8: return 8;
+        }
+    }
+
+    return 0;
+}
+
+function getNumExtensionsToBuild(room: Room): number
+{
+    if (room.controller != null)
+    {
+        switch (room.controller.level)
+        {
+            case 2: return 5;
+            case 3: return 10;
+            case 4: return 20;
+            case 5: return 30;
+            case 6: return 40;
+            case 7: return 50;
+            case 8: return 60;
+        }
+    }
+
+    return 0;
+}
+
+function findNonRoadNeedingRepair(room: Room, rm: M.RoomMemory)
+{
     notRoadNeedingRepair = _.filter(structures, (structure) =>
     {
         if (structure.structureType !== STRUCTURE_ROAD)
@@ -147,42 +222,8 @@ function scanRoom(room: Room, rm: M.RoomMemory)
 
         return false;
     }) as StructureExtension[];
-    constructionSites = room.find<FIND_MY_CONSTRUCTION_SITES>(FIND_MY_CONSTRUCTION_SITES);
 
-    constructionSites = _.sortBy(constructionSites, (constructionSite: ConstructionSite) => constructionSite.id);
     notRoadNeedingRepair = _.sortBy(notRoadNeedingRepair, (struct: Structure) => struct.id);
-
-    let numTownersToBuild = 0;
-    let numExtensionToBuild = 0;
-    if (room.controller != null)
-    {
-        switch (room.controller.level)
-        {
-            case 2: numTownersToBuild = 0; numExtensionToBuild = 5; break;
-            case 3: numTownersToBuild = 1; numExtensionToBuild = 10; break;
-            case 4: numTownersToBuild = 1; numExtensionToBuild = 20; break;
-            case 5: numTownersToBuild = 2; numExtensionToBuild = 30; break;
-            case 6: numTownersToBuild = 2; numExtensionToBuild = 40; break;
-            case 7: numTownersToBuild = 3; numExtensionToBuild = 50; break;
-            case 8: numTownersToBuild = 8; numExtensionToBuild = 60; break;
-        }
-    }
-
-    rm.techLevel = getTechLevel(room, rm, numExtensionToBuild);
-    rm.energyLevel = getRoomEnergyLevel(rm, room);
-    rm.buildsThisTick = 0;
-
-    if (Game.time % 10 === 0)
-    {
-        buildExtension(rm, room, numExtensionToBuild);
-    }
-
-    if (Game.time % 50 === 0)
-    {
-        rm.extensionIdsAssigned = [];
-    }
-
-    log.info(`TL=${rm.techLevel} Mem:${M.m().memVersion}/${M.MemoryVersion} M:${miners.length}/${rm.minerTasks.length} B:${builders.length}/${rm.desiredBuilders} S=${structures.length} Con=${containers.length}/${rm.containerPositions.length} Ext=${extensions.length}/${numExtensionToBuild} R:${notRoadNeedingRepair.length} E:${rm.extensionIdsAssigned.length}`);
 }
 
 function buildMissingCreeps(room: Room, rm: M.RoomMemory)
@@ -257,6 +298,7 @@ function tryToSpawnCreep(inactiveSpawns: StructureSpawn[], bodyParts: BodyPartCo
             if (status === OK)
             {
                 spawned = true;
+                return;
             }
         }
     });
@@ -654,18 +696,6 @@ export function getContainerIdWithLeastBuildersAssigned(room: Room, rm: M.RoomMe
 
 export function getRoomEnergyLevel(rm: M.RoomMemory, room: Room): number
 {
-    // switch (room.controller.level)
-    // {
-    //     case 1: numExtensionToBuild = 0; break; // 300
-    //     case 2: numExtensionToBuild = 5; break; // 550
-    //     case 3: numExtensionToBuild = 10; break; // 800
-    //     case 4: numExtensionToBuild = 20; break; // 1300
-    //     case 5: numExtensionToBuild = 30; break;
-    //     case 6: numExtensionToBuild = 40; break;
-    //     case 7: numExtensionToBuild = 50; break;
-    //     case 8: numExtensionToBuild = 60; break;
-    // }
-
     if (rm.techLevel <= 4 && room.energyAvailable < 550)
     {
         return 1; // less than 550
