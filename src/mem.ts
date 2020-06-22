@@ -1,8 +1,7 @@
 import { log } from "./lib/logger/log";
 export const MemoryVersion = 7;
 
-export const enum CreepRoles
-{
+export const enum CreepRoles {
     ROLE_UNASSIGNED = 0,
     ROLE_ALL,
     ROLE_BUILDER,
@@ -19,10 +18,8 @@ export const enum CreepRoles
     ROLE_UPGRADETRANSPORT
 }
 
-export function roleToString(job: CreepRoles): string
-{
-    switch (job)
-    {
+export function roleToString(job: CreepRoles): string {
+    switch (job) {
         case CreepRoles.ROLE_BUILDER: return "ROLE_BUILDER";
         case CreepRoles.ROLE_MINER: return "ROLE_MINER";
         case CreepRoles.ROLE_MINEHAULER: return "ROLE_MINEHAULER";
@@ -37,29 +34,25 @@ export function roleToString(job: CreepRoles): string
     }
 }
 
-export interface MyPosition
-{
+export interface MyPosition {
     x: number;
     y: number;
 }
 
-export interface PositionPlusTarget
-{
+export interface PositionPlusTarget {
     x: number;
     y: number;
     targetId: string;
 }
 
-export interface RoomPositionPlusTarget
-{
+export interface RoomPositionPlusTarget {
     roomTarget: string;
     x: number;
     y: number;
     targetId: string;
 }
 
-export interface MinerTask
-{
+export interface MinerTask {
     taskId: number;
     minerPosition: PositionPlusTarget;
     assignedMinerName?: string;
@@ -75,8 +68,21 @@ export interface MinerTask
     //lastPickUpPos: MyPosition;
 }
 
-export class RoomMemory
-{
+export class RoomState {
+    public creeps: Creep[] = [];
+    public creepCount: number = 0;
+    public miners: Creep[] = [];
+    public builders: Creep[] = [];
+    public structures: Structure[] = [];
+    public containers: StructureContainer[] = [];
+    public constructionSites: ConstructionSite[] = [];
+    public extensions: StructureExtension[] = [];
+    public notRoadNeedingRepair: Structure[] = [];
+}
+
+export let roomState = new RoomState();
+
+export class RoomMemory {
     public roomName!: string;
     public techLevel!: number;
     public energyLevel!: number;
@@ -117,8 +123,7 @@ export class RoomMemory
     // public minerPositions : {[i: number]: number};
 }
 
-export interface GameMemory
-{
+export interface GameMemory {
     memVersion: number | undefined;
     uuid: number;
     log: any;
@@ -145,8 +150,7 @@ export interface GameMemory
     };
 }
 
-export interface CreepMemory
-{
+export interface MyCreepMemory {
     name: string;
     role: CreepRoles;
     roleString: string;
@@ -169,17 +173,14 @@ export interface CreepMemory
     // customControlState ?: number;
 }
 
-export function cm(creep: Creep): CreepMemory
-{
-    return creep.memory as CreepMemory;
+export function cm(creep: Creep): MyCreepMemory {
+    return creep.memory as unknown as MyCreepMemory;
 }
 
-export function m(): GameMemory
-{
+export function m(): GameMemory {
     return Memory as any as GameMemory;
 }
 
-export function l(cmLog: CreepMemory): string
-{
+export function l(cmLog: MyCreepMemory): string {
     return `${cmLog.name}: `;
 }

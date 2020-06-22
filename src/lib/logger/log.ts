@@ -1,6 +1,7 @@
 import { SourceMapConsumer } from "source-map/source-map";
 import * as Config from "../../config";
 import { LogLevels } from "./logLevels";
+import * as M from "../../mem";
 
 // <caller> (<source>:<line>:<column>)
 const stackLineRe = /([^ ]*) \(([^:]*):([0-9]*):([0-9]*)\)/;
@@ -94,12 +95,12 @@ export class Log
         }
     }
 
-    public get level(): number { return Memory.log.level; }
-    public set level(value: number) { Memory.log.level = value; }
-    public get showSource(): boolean { return Memory.log.showSource; }
-    public set showSource(value: boolean) { Memory.log.showSource = value; }
-    public get showTick(): boolean { return Memory.log.showTick; }
-    public set showTick(value: boolean) { Memory.log.showTick = value; }
+    public get level(): number { return M.m().log.level; }
+    public set level(value: number) { M.m().log.level = value; }
+    public get showSource(): boolean { return M.m().log.showSource; }
+    public set showSource(value: boolean) { M.m().log.showSource = value; }
+    public get showTick(): boolean { return M.m().log.showTick; }
+    public set showTick(value: boolean) { M.m().log.showTick = value; }
 
     private _maxFileString: number = 0;
 
@@ -128,7 +129,8 @@ export class Log
     {
         if (this.level >= LogLevels.ERROR)
         {
-            console.log.apply(this, this.buildArguments(LogLevels.ERROR).concat([].slice.call(args)));
+            // TODO fix
+            //console.log.apply(this, this.buildArguments(LogLevels.ERROR).concat([].slice.call(args)));
         }
     }
 
@@ -136,7 +138,7 @@ export class Log
     {
         if (this.level >= LogLevels.WARNING)
         {
-            console.log.apply(this, this.buildArguments(LogLevels.WARNING).concat([].slice.call(args)));
+            //console.log.apply(this, this.buildArguments(LogLevels.WARNING).concat([].slice.call(args)));
         }
     }
 
@@ -144,7 +146,7 @@ export class Log
     {
         if (this.level >= LogLevels.INFO)
         {
-            console.log.apply(this, this.buildArguments(LogLevels.INFO).concat([].slice.call(args)));
+            //console.log.apply(this, this.buildArguments(LogLevels.INFO).concat([].slice.call(args)));
         }
     }
 
@@ -152,7 +154,7 @@ export class Log
     {
         if (this.level >= LogLevels.DEBUG)
         {
-            console.log.apply(this, this.buildArguments(LogLevels.DEBUG).concat([].slice.call(args)));
+            //console.log.apply(this, this.buildArguments(LogLevels.DEBUG).concat([].slice.call(args)));
         }
     }
 

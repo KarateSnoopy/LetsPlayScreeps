@@ -1,231 +1,242 @@
 import * as M from "./mem";
 import { log } from "./lib/logger/log";
-import * as RoomManager from "./roomManager";
+import { RoomManager } from "./internal";
 
-export function run(room: Room, creep: Creep, rm: M.RoomMemory): void
+export class Builder
 {
-    const cm = M.cm(creep);
-    if (cm.assignedContainerId === undefined)
+    static run(room: Room, creep: Creep, rm: M.RoomMemory): void
     {
-        cm.assignedContainerId = RoomManager.getContainerIdWithLeastBuildersAssigned(room, rm);
-    }
-
-    room.visual.text(
-        `🛠️`,
-        creep.pos.x,
-        creep.pos.y,
-        { align: "center", opacity: 0.8 });
-
-    if (cm.assignedContainerId === undefined)
-    {
-        //log.error(`${M.l(cm)}not assigned to container`);
-        return;
-    }
-
-    if (cm.gathering && creep.carry.energy === creep.carryCapacity)
-    {
-        cm.gathering = false;
-    }
-    if (!cm.gathering && creep.carry.energy === 0)
-    {
-        cm.gathering = true;
-        cm.isUpgradingController = false;
-        if (cm.assignedTargetId !== undefined)
+        const cm = M.cm(creep);
+        if (cm.assignedContainerId === undefined)
         {
-            const target = Game.getObjectById(cm.assignedTargetId) as Structure;
-            if (target.structureType === STRUCTURE_EXTENSION)
-            {
-                RoomManager.removeAssignedExt(target.id, rm);
-            }
+            cm.assignedContainerId = RoomManager.getContainerIdWithLeastBuildersAssigned(room, rm);
         }
-        cm.assignedTargetId = undefined;
-    }
 
-    if (cm.gathering)
-    {
-        //log.info(`${M.l(cm)}builder is moving to container`);
-        pickupEnergy(creep, cm, rm);
-    }
-    else
-    {
-        //log.info(`${M.l(cm)}builder is using energy`);
-        useEnergy(room, creep, cm, rm);
-    }
+        room.visual.text(
+            `🛠️`,
+            creep.pos.x,
+            creep.pos.y,
+            { align: "center", opacity: 0.8 });
 
-    tryToBuildRoad(rm, creep, room, cm);
-}
-
-function pickupEnergy(creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
-{
-    const target = Game.getObjectById(cm.assignedContainerId) as StructureContainer;
-    if (target === null)
-    {
-        cm.assignedContainerId = undefined;
-        return;
-    }
-
-    let energyCount = 0;
-    if (creep.carry.energy !== undefined)
-    {
-        energyCount = creep.carry.energy;
-    }
-
-    //creep.say(`withdrawing`);
-    const amtEnergy = creep.carryCapacity - energyCount;
-    const errCode = creep.withdraw(target, RESOURCE_ENERGY, amtEnergy);
-    if (errCode === ERR_NOT_IN_RANGE)
-    {
-        creep.moveTo(target, { visualizePathStyle: { stroke: "#ffffff" } });
-    }
-
-    if (errCode !== OK && errCode !== ERR_NOT_IN_RANGE && errCode !== ERR_NOT_ENOUGH_RESOURCES)
-    {
-        log.info(`${M.l(cm)}Transfer error ${errCode}`);
-    }
-}
-
-
-function isAlreadyTaken(structure: Structure, rm: M.RoomMemory): boolean
-{
-    if (structure.structureType === STRUCTURE_EXTENSION)
-    {
-        const isAssigned = _.find(rm.extensionIdsAssigned, (ext: string) => ext === structure.id);
-        if (isAssigned !== undefined)
+        if (cm.assignedContainerId === undefined)
         {
-            return true;
+            //log.error(`${M.l(cm)}not assigned to container`);
+            return;
         }
-    }
 
-    return false;
-}
-
-function isStructureFullOfEnergy(structure: Structure): boolean
-{
-    if (structure.structureType === STRUCTURE_EXTENSION)
-    {
-        const structExt: StructureExtension = structure as StructureExtension;
-        return structExt.energy >= structExt.energyCapacity;
-    }
-    if (structure.structureType === STRUCTURE_SPAWN)
-    {
-        const structSpawn: StructureSpawn = structure as StructureSpawn;
-        return structSpawn.energy >= structSpawn.energyCapacity;
-    }
-    if (structure.structureType === STRUCTURE_TOWER)
-    {
-        const structTower: StructureTower = structure as StructureTower;
-        return structTower.energy >= structTower.energyCapacity;
-    }
-
-    return true;
-}
-
-
-
-function useEnergy(room: Room, creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): void
-{
-    let target: Structure | undefined;
-    if (cm.assignedTargetId !== undefined)
-    {
-        target = Game.getObjectById(cm.assignedTargetId) as Structure;
-        if (isStructureFullOfEnergy(target))
+        if (cm.gathering && creep.carry.energy === creep.carryCapacity)
         {
-            if (target.structureType === STRUCTURE_EXTENSION)
+            cm.gathering = false;
+        }
+        if (!cm.gathering && creep.carry.energy === 0)
+        {
+            cm.gathering = true;
+            cm.isUpgradingController = false;
+            if (cm.assignedTargetId !== undefined)
             {
-                //log.info(`RoomManager.removeAssignedExt ${target.id}.  full`);
-                RoomManager.removeAssignedExt(target.id, rm);
+                const target = Game.getObjectById(cm.assignedTargetId) as Structure;
+                if (target.structureType === STRUCTURE_EXTENSION)
+                {
+                    RoomManager.removeAssignedExt(target.id, rm);
+                }
             }
             cm.assignedTargetId = undefined;
-            target = undefined;
         }
-    }
 
-    //log.info(`${M.l(cm)}cm.assignedTargetId=${cm.assignedTargetId} cm.isUpgradingController=${cm.isUpgradingController}`);
-    if (cm.assignedTargetId === undefined &&
-        !cm.isUpgradingController)
-    {
-        const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
-            {
-                filter: (structure: Structure) =>
-                {
-                    return !isStructureFullOfEnergy(structure) && !isAlreadyTaken(structure, rm);
-                }
-            });
-        if (targets.length > 0)
+        if (cm.gathering)
         {
-            target = targets[0];
-            cm.assignedTargetId = target.id;
-            if (target.structureType === STRUCTURE_EXTENSION)
-            {
-                //log.info(`${M.l(cm)}Assigned ext ${target.id}`);
-                //_.each(rm.extensionIdsAssigned, (e: string) => log.info(`BeforeRM = ${e}`));
-                rm.extensionIdsAssigned.push(target.id);
-                //_.each(rm.extensionIdsAssigned, (e: string) => log.info(`RM = ${e}`));
-            }
+            //log.info(`${M.l(cm)}builder is moving to container`);
+            Builder.pickupEnergy(creep, cm, rm);
         }
+        else
+        {
+            //log.info(`${M.l(cm)}builder is using energy`);
+            Builder.useEnergy(room, creep, cm, rm);
+        }
+
+        Builder.tryToBuildRoad(rm, creep, room, cm);
     }
 
-    if (room.controller !== undefined && room.controller.ticksToDowngrade < 1000)
+    static pickupEnergy(creep: Creep, cm: M.MyCreepMemory, rm: M.RoomMemory): void
     {
-        target = undefined;
-    }
+        if (cm.assignedContainerId === undefined)
+        {
+            return;
+        }
 
-    if (target !== undefined)
-    {
-        //creep.say(`transfering`);
-        if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+        const target = Game.getObjectById(cm.assignedContainerId) as StructureContainer;
+        if (target === null)
+        {
+            cm.assignedContainerId = undefined;
+            return;
+        }
+
+        let energyCount = 0;
+        if (creep.carry.energy !== undefined)
+        {
+            energyCount = creep.carry.energy;
+        }
+
+        //creep.say(`withdrawing`);
+        const amtEnergy = creep.carryCapacity - energyCount;
+        const errCode = creep.withdraw(target, RESOURCE_ENERGY, amtEnergy);
+        if (errCode === ERR_NOT_IN_RANGE)
         {
             creep.moveTo(target, { visualizePathStyle: { stroke: "#ffffff" } });
         }
-    }
-    else
-    {
-        if (room.controller !== undefined && room.controller.ticksToDowngrade > 1000)
-        {
-            if (repairIfCan(room, creep, cm, rm))
-            {
-                //creep.say(`Repairing`);
-                return;
-            }
 
-            if (buildIfCan(room, creep, cm))
+        if (errCode !== OK && errCode !== ERR_NOT_IN_RANGE && errCode !== ERR_NOT_ENOUGH_RESOURCES)
+        {
+            log.info(`${M.l(cm)}Transfer error ${errCode}`);
+        }
+    }
+
+
+    static isAlreadyTaken(structure: Structure, rm: M.RoomMemory): boolean
+    {
+        if (structure.structureType === STRUCTURE_EXTENSION)
+        {
+            const isAssigned = _.find(rm.extensionIdsAssigned, (ext: string) => ext === structure.id);
+            if (isAssigned !== undefined)
             {
-                //creep.say(`Building`);
-                return;
+                return true;
             }
         }
 
-        if (room.controller !== undefined)
+        return false;
+    }
+
+    static isStructureFullOfEnergy(structure: Structure): boolean
+    {
+        if (structure.structureType === STRUCTURE_EXTENSION)
         {
-            cm.isUpgradingController = true;
-            //creep.say(`upgrading`);
-            const status = creep.upgradeController(room.controller);
-            if (status === ERR_NOT_IN_RANGE)
+            const structExt: StructureExtension = structure as StructureExtension;
+            return structExt.energy >= structExt.energyCapacity;
+        }
+        if (structure.structureType === STRUCTURE_SPAWN)
+        {
+            const structSpawn: StructureSpawn = structure as StructureSpawn;
+            return structSpawn.energy >= structSpawn.energyCapacity;
+        }
+        if (structure.structureType === STRUCTURE_TOWER)
+        {
+            const structTower: StructureTower = structure as StructureTower;
+            return structTower.energy >= structTower.energyCapacity;
+        }
+
+        return true;
+    }
+
+    static useEnergy(room: Room, creep: Creep, cm: M.MyCreepMemory, rm: M.RoomMemory): void
+    {
+        let target: Structure | undefined;
+        if (cm.assignedTargetId !== undefined)
+        {
+            target = Game.getObjectById(cm.assignedTargetId) as Structure;
+            if (Builder.isStructureFullOfEnergy(target))
             {
-                const moveCode = creep.moveTo(room.controller, { visualizePathStyle: { stroke: "#ffffff" } });
-                if (moveCode !== OK && moveCode !== ERR_TIRED)
+                if (target.structureType === STRUCTURE_EXTENSION)
                 {
-                    log.info(`${M.l(cm)}move and got ${moveCode}`);
+                    //log.info(`M.roomState.removeAssignedExt ${target.id}.  full`);
+                    RoomManager.removeAssignedExt(target.id, rm);
+                }
+                cm.assignedTargetId = undefined;
+                target = undefined;
+            }
+        }
+
+        //log.info(`${M.l(cm)}cm.assignedTargetId=${cm.assignedTargetId} cm.isUpgradingController=${cm.isUpgradingController}`);
+        if (cm.assignedTargetId === undefined &&
+            !cm.isUpgradingController)
+        {
+            const targets: Structure[] = creep.room.find(FIND_STRUCTURES,
+                {
+                    filter: (structure: Structure) =>
+                    {
+                        return !Builder.isStructureFullOfEnergy(structure) && !Builder.isAlreadyTaken(structure, rm);
+                    }
+                });
+            if (targets.length > 0)
+            {
+                target = targets[0];
+                cm.assignedTargetId = target.id;
+                if (target.structureType === STRUCTURE_EXTENSION)
+                {
+                    //log.info(`${M.l(cm)}Assigned ext ${target.id}`);
+                    //_.each(rm.extensionIdsAssigned, (e: string) => log.info(`BeforeRM = ${e}`));
+                    rm.extensionIdsAssigned.push(target.id);
+                    //_.each(rm.extensionIdsAssigned, (e: string) => log.info(`RM = ${e}`));
+                }
+            }
+        }
+
+        if (room.controller !== undefined && room.controller.ticksToDowngrade < 1000)
+        {
+            target = undefined;
+        }
+
+        if (target !== undefined)
+        {
+            //creep.say(`transfering`);
+            if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+            {
+                creep.moveTo(target, { visualizePathStyle: { stroke: "#ffffff" } });
+            }
+        }
+        else
+        {
+            if (room.controller !== undefined && room.controller.ticksToDowngrade > 1000)
+            {
+                if (Builder.repairIfCan(room, creep, cm, rm))
+                {
+                    //creep.say(`Repairing`);
+                    return;
+                }
+
+                if (Builder.buildIfCan(room, creep, cm))
+                {
+                    //creep.say(`Building`);
+                    return;
+                }
+            }
+
+            if (room.controller !== undefined)
+            {
+                cm.isUpgradingController = true;
+                //creep.say(`upgrading`);
+                const status = creep.upgradeController(room.controller);
+                if (status === ERR_NOT_IN_RANGE)
+                {
+                    const moveCode = creep.moveTo(room.controller, { visualizePathStyle: { stroke: "#ffffff" } });
+                    if (moveCode !== OK && moveCode !== ERR_TIRED)
+                    {
+                        log.info(`${M.l(cm)}move and got ${moveCode}`);
+                    }
                 }
             }
         }
     }
-}
 
-function repairIfCan(room: Room, creep: Creep, cm: M.CreepMemory, rm: M.RoomMemory): boolean
-{
-    let repairTarget: Structure | undefined;
-    if (cm.repairTargetId !== undefined)
+    static repairIfCan(room: Room, creep: Creep, cm: M.MyCreepMemory, rm: M.RoomMemory): boolean
     {
-        repairTarget = Game.getObjectById(cm.repairTargetId) as Structure;
-        if (repairTarget === null)
+        let repairTarget: Structure | undefined;
+        if (cm.repairTargetId !== undefined)
         {
-            cm.repairTargetId = undefined;
-            return false;
-        }
-        else if (repairTarget.structureType === STRUCTURE_RAMPART)
-        {
-            if (repairTarget.hits > rm.desiredWallHitPoints)
+            repairTarget = Game.getObjectById(cm.repairTargetId) as Structure;
+            if (repairTarget === null)
+            {
+                cm.repairTargetId = undefined;
+                return false;
+            }
+            else if (repairTarget.structureType === STRUCTURE_RAMPART)
+            {
+                if (repairTarget.hits > rm.desiredWallHitPoints)
+                {
+                    cm.repairTargetId = undefined;
+                    return false;
+                }
+            }
+            else
             {
                 cm.repairTargetId = undefined;
                 return false;
@@ -233,91 +244,85 @@ function repairIfCan(room: Room, creep: Creep, cm: M.CreepMemory, rm: M.RoomMemo
         }
         else
         {
-            cm.repairTargetId = undefined;
-            return false;
-        }
-    }
-    else
-    {
-        if (RoomManager.notRoadNeedingRepair.length > 0)
-        {
-            repairTarget = RoomManager.notRoadNeedingRepair[0];
-            if (repairTarget.structureType === STRUCTURE_RAMPART &&
-                repairTarget.hits < rm.desiredWallHitPoints)
+            if (M.roomState.notRoadNeedingRepair.length > 0)
             {
-                cm.repairTargetId = repairTarget.id;
-            }
-        }
-    }
-
-
-    if (repairTarget === undefined)
-    {
-        const structuresUnderFeet = creep.pos.lookFor(LOOK_STRUCTURES) as Structure[];
-        if (structuresUnderFeet.length > 0)
-        {
-            const roadsUnderFeed = _.filter(structuresUnderFeet, (structure) => structure.structureType === STRUCTURE_ROAD) as StructureRoad[];
-            if (roadsUnderFeed.length > 0)
-            {
-                if (roadsUnderFeed[0].hits + 50 < roadsUnderFeed[0].hitsMax)
+                repairTarget = M.roomState.notRoadNeedingRepair[0];
+                if (repairTarget.structureType === STRUCTURE_RAMPART &&
+                    repairTarget.hits < rm.desiredWallHitPoints)
                 {
-                    repairTarget = roadsUnderFeed[0];
+                    cm.repairTargetId = repairTarget.id;
                 }
             }
         }
-    }
 
-    if (repairTarget !== undefined)
-    {
-        const status = creep.repair(repairTarget);
-        if (status === ERR_NOT_IN_RANGE)
+
+        if (repairTarget === undefined)
         {
-            const moveCode = creep.moveTo(repairTarget, { visualizePathStyle: { stroke: "#ffffff" } });
-            if (moveCode !== OK && moveCode !== ERR_TIRED)
+            const structuresUnderFeet = creep.pos.lookFor(LOOK_STRUCTURES) as Structure[];
+            if (structuresUnderFeet.length > 0)
             {
-                log.info(`${M.l(cm)}move and got ${moveCode}`);
+                const roadsUnderFeed = _.filter(structuresUnderFeet, (structure) => structure.structureType === STRUCTURE_ROAD) as StructureRoad[];
+                if (roadsUnderFeed.length > 0)
+                {
+                    if (roadsUnderFeed[0].hits + 50 < roadsUnderFeed[0].hitsMax)
+                    {
+                        repairTarget = roadsUnderFeed[0];
+                    }
+                }
             }
         }
-        return true;
-    }
 
-    return false;
-}
-
-function buildIfCan(room: Room, creep: Creep, cm: M.CreepMemory): boolean
-{
-    if (RoomManager.constructionSites.length > 0)
-    {
-        const status = creep.build(RoomManager.constructionSites[0]);
-        if (status === ERR_NOT_IN_RANGE)
+        if (repairTarget !== undefined)
         {
-            const moveCode = creep.moveTo(RoomManager.constructionSites[0], { visualizePathStyle: { stroke: "#ffffff" } });
-            if (moveCode !== OK && moveCode !== ERR_TIRED)
+            const status = creep.repair(repairTarget);
+            if (status === ERR_NOT_IN_RANGE)
             {
-                log.info(`${M.l(cm)}move and got ${moveCode}`);
+                const moveCode = creep.moveTo(repairTarget, { visualizePathStyle: { stroke: "#ffffff" } });
+                if (moveCode !== OK && moveCode !== ERR_TIRED)
+                {
+                    log.info(`${M.l(cm)}move and got ${moveCode}`);
+                }
             }
+            return true;
         }
-        return true;
-    }
-    else
-    {
+
         return false;
     }
-}
 
-
-function tryToBuildRoad(rm: M.RoomMemory, creep: Creep, room: Room, cm: M.CreepMemory)
-{
-    if ((Game.time + 5) % 10 === 0)
+    static buildIfCan(room: Room, creep: Creep, cm: M.MyCreepMemory): boolean
     {
-        if (rm.techLevel >= 5 && rm.buildsThisTick === 0)
+        if (M.roomState.constructionSites.length > 0)
         {
-            const errCode = creep.room.createConstructionSite(creep.pos, STRUCTURE_ROAD);
-            if (errCode === OK)
+            const status = creep.build(M.roomState.constructionSites[0]);
+            if (status === ERR_NOT_IN_RANGE)
             {
-                log.info(`${M.l(cm)} Created road at ${creep.pos}`);
-                rm.buildsThisTick++;
-                return;
+                const moveCode = creep.moveTo(M.roomState.constructionSites[0], { visualizePathStyle: { stroke: "#ffffff" } });
+                if (moveCode !== OK && moveCode !== ERR_TIRED)
+                {
+                    log.info(`${M.l(cm)}move and got ${moveCode}`);
+                }
+            }
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    static tryToBuildRoad(rm: M.RoomMemory, creep: Creep, room: Room, cm: M.MyCreepMemory)
+    {
+        if ((Game.time + 5) % 10 === 0)
+        {
+            if (rm.techLevel >= 5 && rm.buildsThisTick === 0)
+            {
+                const errCode = creep.room.createConstructionSite(creep.pos, STRUCTURE_ROAD);
+                if (errCode === OK)
+                {
+                    log.info(`${M.l(cm)} Created road at ${creep.pos}`);
+                    rm.buildsThisTick++;
+                    return;
+                }
             }
         }
     }

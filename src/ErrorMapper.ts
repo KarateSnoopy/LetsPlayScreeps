@@ -1,5 +1,5 @@
 // tslint:disable:no-conditional-assignment
-import { SourceMapConsumer } from "source-map/source-map";
+import { SourceMapConsumer } from "source-map";
 
 export class ErrorMapper
 {
@@ -30,7 +30,7 @@ export class ErrorMapper
      */
     public static sourceMappedStackTrace(error: Error | string): string
     {
-        const stack: string = error instanceof Error ? error.stack as string : error;
+        const stack: string = error instanceof Error ? (error.stack as string) : error;
         if (this.cache.hasOwnProperty(stack))
         {
             return this.cache[stack];
@@ -40,7 +40,7 @@ export class ErrorMapper
         let match: RegExpExecArray | null;
         let outStack = error.toString();
 
-        while (match = re.exec(stack))
+        while ((match = re.exec(stack)))
         {
             if (match[2] === "main")
             {

@@ -10,6 +10,7 @@
 /tsc-out
 /node_modules
 /_book
+/build/*
 
 # TypeScript definitions installed by Typings
 /typings
@@ -17,9 +18,8 @@
 # Screeps Config
 screeps.json
 
-# code coverage directory
-/coverage
-.nyc_output/
+# ScreepsServer data from integration tests
+/server
 
 # Numerous always-ignore extensions
 *.diff
