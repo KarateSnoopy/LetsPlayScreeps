@@ -150,7 +150,7 @@ export class RoomManager
 
         if (Game.time % 100 === 0)
         {
-            log.info(`TL=${rm.techLevel} Mem:${M.m().memVersion}/${M.MemoryVersion} M:${M.roomState.miners.length}/${rm.minerTasks.length} B:${M.roomState.builders.length}/${rm.desiredBuilders} S=${M.roomState.structures.length} Con=${M.roomState.containers.length}/${rm.containerPositions.length} Ext=${M.roomState.extensions.length}/${numExtensionToBuild} R:${M.roomState.notRoadNeedingRepair.length} E:${rm.extensionIdsAssigned.length}`);
+            log.info(`TL=${rm.techLevel} Mem:${M.m().memVersion}/${M.MemoryVersion} M:${M.roomState.miners.length}/${rm.minerTasks.length} B:${M.roomState.builders.length}/${rm.desiredBuilders} S=${M.roomState.structures.length} Con=${M.roomState.containers.length}/${rm.containerPositions.length} Ext=${M.roomState.extensions.length}/${numExtensionToBuild} R:${M.roomState.notRoadNeedingRepair.length} E:${rm.extensionIdsAssigned.length} Eng:${rm.energyLevel}`);
         }
     }
 
@@ -687,7 +687,7 @@ export class RoomManager
 
     private static getRoomEnergyLevel(rm: M.RoomMemory, room: Room): number
     {
-        if (rm.techLevel <= 4 && room.energyAvailable < 550)
+        if ((rm.techLevel <= 4 && room.energyAvailable < 550) || M.roomState.miners.length < 2 || M.roomState.builders.length < 2)
         {
             return 1; // less than 550
         }
