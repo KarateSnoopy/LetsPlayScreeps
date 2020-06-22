@@ -8,7 +8,7 @@
             "type": "shell",
             "command": "compile",
             "windows": {
-                "command": "F:\\git\\screeps\\LetsPlayScreeps\\compile.cmd"
+                "command": "E:\\git\\screeps\\LetsPlayScreeps\\compile.cmd"
             },
             "group": {
                 "kind": "build",

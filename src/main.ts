@@ -40,6 +40,7 @@ function memoryInit()
 
 function mainLoop()
 {
+    //console.log(`Current game tick is ${Game.time}`);
     if (M.m().memVersion === undefined ||
         M.m().memVersion !== M.MemoryVersion)
     {

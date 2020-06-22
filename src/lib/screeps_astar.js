@@ -16,7 +16,8 @@
 // - Optimizations from http://theory.stanford.edu/~amitp/GameProgramming/Heuristics.html
 
 
-var astar = function () {
+var astar = function ()
+{
 
 }
 
@@ -69,7 +70,8 @@ astar.defaults = {
 * @param {Function} [options.heuristic] Heuristic function (see
 *          astar.heuristics).
 */
-astar.prototype.search = function (room, start, end, user_options) {
+astar.prototype.search = function (room, start, end, user_options)
+{
     var options = _.clone(astar.defaults)
     _.merge(options, _.clone(user_options) || {})
 
@@ -134,7 +136,8 @@ astar.prototype.search = function (room, start, end, user_options) {
 
     var direction = ''
 
-    var openHeap = new BinaryHeap(function (node) {
+    var openHeap = new BinaryHeap(function (node)
+    {
         return node.f;
     });
 
@@ -255,13 +258,15 @@ astar.prototype.search = function (room, start, end, user_options) {
 
     // See list of heuristics: http://theory.stanford.edu/~amitp/GameProgramming/Heuristics.html
     astar.prototype.heuristics = {
-        manhattan: function (pos0, pos1) {
+        manhattan: function (pos0, pos1)
+        {
             var d1 = Math.abs(pos1.x - pos0.x);
             var d2 = Math.abs(pos1.y - pos0.y);
             return d1 + +d2;
         },
 
-        diagonal_weighted: function (pos0, pos1) {
+        diagonal_weighted: function (pos0, pos1)
+        {
             var D = 1;
             var D2 = Math.sqrt(2);
             var d1 = Math.abs(pos1.x - pos0.x);
@@ -269,14 +274,16 @@ astar.prototype.search = function (room, start, end, user_options) {
             return (D * (d1 + d2)) + ((D2 - (2 * D)) * Math.min(d1, d2));
         },
 
-        diagonal: function (pos0, pos1) {
+        diagonal: function (pos0, pos1)
+        {
             var d1 = Math.abs(pos1.x - pos0.x);
             var d2 = Math.abs(pos1.y - pos0.y);
             return Math.max(d1, d2)
         }
     },
 
-    astar.prototype.scoring = function (room, x, y, scoring) {
+    astar.prototype.scoring = function (room, x, y, scoring)
+    {
 
         if (!scoring)
         {
@@ -364,7 +371,8 @@ astar.prototype.search = function (room, start, end, user_options) {
         return score
     },
 
-    astar.prototype.pathTo = function (room, node) {
+    astar.prototype.pathTo = function (room, node)
+    {
         var path = [];
         var curr = node;
 
@@ -405,7 +413,8 @@ astar.prototype.search = function (room, start, end, user_options) {
  * @param {Funtion} [weight] = Weight function for nodes
  * @param {bool} [diagonal] = Specifies whether diagonal moves are allowed
  */
-function Graph(room, weight, scoring, diagonal) {
+function Graph(room, weight, scoring, diagonal)
+{
     this.room = room
     this.weight = weight
     this.scoring = scoring
@@ -413,7 +422,8 @@ function Graph(room, weight, scoring, diagonal) {
     this.grid = [];
 }
 
-Graph.prototype.getNode = function (x, y) {
+Graph.prototype.getNode = function (x, y)
+{
 
     if (!this.grid[x])
     {
@@ -444,7 +454,8 @@ Graph.prototype.getNode = function (x, y) {
     return this.grid[x][y]
 }
 
-Graph.prototype.neighbors = function (node) {
+Graph.prototype.neighbors = function (node)
+{
     var ret = [];
     var x = node.x;
     var y = node.y;
@@ -546,7 +557,8 @@ Graph.prototype.neighbors = function (node) {
 
 
 
-function GridNode(room, x, y, weight) {
+function GridNode(room, x, y, weight)
+{
 
     if (!weight || weight < 1)
     {
@@ -567,15 +579,18 @@ function GridNode(room, x, y, weight) {
     this.parent = null;
 }
 
-GridNode.prototype.toString = function () {
+GridNode.prototype.toString = function ()
+{
     return "[" + this.x + " " + this.y + "]";
 };
 
-GridNode.prototype.isBlocked = function () {
+GridNode.prototype.isBlocked = function ()
+{
     return this.weight < 1;
 };
 
-GridNode.prototype.getDirectionFrom = function (node) {
+GridNode.prototype.getDirectionFrom = function (node)
+{
     var x = this.x
     var y = this.y
     // Node is to the left
@@ -640,13 +655,15 @@ GridNode.prototype.getDirectionFrom = function (node) {
 
 
 
-function BinaryHeap(scoreFunction) {
+function BinaryHeap(scoreFunction)
+{
     this.content = [];
     this.scoreFunction = scoreFunction;
 }
 
 BinaryHeap.prototype = {
-    push: function (element) {
+    push: function (element)
+    {
         var content = this.content;
         // Add the new element to the end of the array.
         content.push(element);
@@ -654,7 +671,8 @@ BinaryHeap.prototype = {
         // Allow it to sink down.
         this.sinkDown(content.length - 1);
     },
-    pop: function () {
+    pop: function ()
+    {
         var content = this.content;
         // Store the first element so we can return it later.
         var result = content[0];
@@ -669,7 +687,8 @@ BinaryHeap.prototype = {
         }
         return result;
     },
-    remove: function (node) {
+    remove: function (node)
+    {
         var content = this.content;
         var i = content.indexOf(node);
 
@@ -690,13 +709,16 @@ BinaryHeap.prototype = {
             }
         }
     },
-    size: function () {
+    size: function ()
+    {
         return this.content.length;
     },
-    rescoreElement: function (node) {
+    rescoreElement: function (node)
+    {
         this.sinkDown(this.content.indexOf(node));
     },
-    sinkDown: function (n) {
+    sinkDown: function (n)
+    {
         var content = this.content;
         var scoreFunction = this.scoreFunction;
         // Fetch the element that has to be sunk.
@@ -726,7 +748,8 @@ BinaryHeap.prototype = {
             }
         }
     },
-    bubbleUp: function (n) {
+    bubbleUp: function (n)
+    {
         var content = this.content;
         var scoreFunction = this.scoreFunction;
         // Look up the target element and its score.

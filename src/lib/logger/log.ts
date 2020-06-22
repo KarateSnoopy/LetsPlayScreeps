@@ -129,8 +129,7 @@ export class Log
     {
         if (this.level >= LogLevels.ERROR)
         {
-            // TODO fix
-            //console.log.apply(this, this.buildArguments(LogLevels.ERROR).concat([].slice.call(args)));
+            console.log(this.buildArguments(LogLevels.ERROR).concat([].slice.call(args)));
         }
     }
 
@@ -138,7 +137,7 @@ export class Log
     {
         if (this.level >= LogLevels.WARNING)
         {
-            //console.log.apply(this, this.buildArguments(LogLevels.WARNING).concat([].slice.call(args)));
+            console.log(this.buildArguments(LogLevels.WARNING).concat([].slice.call(args)));
         }
     }
 
@@ -146,7 +145,7 @@ export class Log
     {
         if (this.level >= LogLevels.INFO)
         {
-            //console.log.apply(this, this.buildArguments(LogLevels.INFO).concat([].slice.call(args)));
+            console.log(this.buildArguments(LogLevels.INFO).concat([].slice.call(args)));
         }
     }
 
@@ -154,7 +153,7 @@ export class Log
     {
         if (this.level >= LogLevels.DEBUG)
         {
-            //console.log.apply(this, this.buildArguments(LogLevels.DEBUG).concat([].slice.call(args)));
+            console.log(this.buildArguments(LogLevels.DEBUG).concat([].slice.call(args)));
         }
     }
 
